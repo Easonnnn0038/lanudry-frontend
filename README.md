@@ -12,42 +12,6 @@ Vite	6.0.5	构建工具
 Electron	33.2.1	桌面壳（可选）
 项目结构
 
-Plain Text
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
 laundry-frontend/
 ├── electron/
 │   ├── main.js                   # Electron 主进程
@@ -89,13 +53,7 @@ npm 9+ 或 pnpm 8+
 快速开始
 1. 安装依赖
 
-Bash
 
-1
-2
-3
-4
-5
 # 进入项目目录
 cd laundry-frontend
 
@@ -104,15 +62,11 @@ npm install
 国内用户建议先配置镜像：
 
 
-Bash
 
-1
 npm config set registry https://registry.npmmirror.com
 2. 启动开发服务器（浏览器模式）
 
-Bash
 
-1
 npm run dev
 启动后访问：http://localhost:5173
 
@@ -122,21 +76,12 @@ Vite 开发服务器已配置代理：
 /photos/** → 转发到 http://localhost:8080 （照片静态资源）
 3. （可选）启动 Electron 桌面模式
 
-Bash
 
-1
-2
 # 同时启动 Vite + Electron 窗口
 npm run electron:dev
 4. 打包构建
 
-Bash
 
-1
-2
-3
-4
-5
 # 仅前端静态文件打包（输出到 dist/）
 npm run build
 
@@ -167,20 +112,7 @@ employee2	emp123	员工
 ⑤ 收款	自动计算原价/折扣/加急费/办卡充值/卡扣/补差	办卡/补差必须选择支付方式
 收款金额计算逻辑
 
-Plain Text
 
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
 原价合计 totalAmount
   → 折扣后 actualAmount（按会员卡折扣率 / 固定会员价）
     → 加急费 urgentSurcharge（加急订单：actualAmount × 20%）
@@ -221,22 +153,6 @@ API 封装 (src/api/)
 修改后端地址
 编辑 vite.config.js：
 
-
-JavaScript
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
 server: {
   port: 5173,
   proxy: {
@@ -254,20 +170,11 @@ server: {
 编辑 vite.config.js 的 base 字段（默认 './'，用于 Electron 内嵌）：
 
 
-JavaScript
 
-1
 base: './',  // 部署到 Web 服务器子目录时改成对应路径
 常用命令速查
 
-Bash
 
-1
-2
-3
-4
-5
-6
 npm run dev              # 开发模式（浏览器）
 npm run build            # 打包生产静态文件（dist/）
 npm run preview          # 本地预览打包结果
