@@ -1,0 +1,32 @@
+{
+  "name": "laundry-frontend",
+  "version": "1.0.0",
+  "description": "小木棒洗衣管理系统 - 桌面客户端",
+  "author": "LittleStickLaundry",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
+    "electron:build": "vite build && cross-env NODE_ENV=production electron .",
+    "electron": "cross-env NODE_ENV=development electron ."
+  },
+  "dependencies": {
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0",
+    "pinia": "^2.3.0",
+    "element-plus": "^2.9.1",
+    "@element-plus/icons-vue": "^2.3.1",
+    "axios": "^1.7.9"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.0.5",
+    "electron": "^33.2.1",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "wait-on": "^8.0.1"
+  }
+}
