@@ -50,6 +50,12 @@ export const orderApi = {
   dashboardRecent: (limit = 10) => request.get('/order/dashboard-recent', { params: { limit } })
 }
 
+/** 装车送厂相关接口 */
+export const factoryDispatchApi = {
+  eligibleOrders: () => request.get('/factory-dispatch/eligible-orders'),
+  createBatch: (data) => request.post('/factory-dispatch/create', data)
+}
+
 /** 照片相关接口（瑕疵拍照取证） */
 export const photoApi = {
   /** 上传照片（multipart/form-data） */

@@ -20,6 +20,9 @@
         <!-- 暂存列表 -->
         <StoreStaging v-else-if="activeMenu === 'store-temp'" />
 
+        <!-- 装车送厂 -->
+        <StoreLoad v-else-if="activeMenu === 'store-load'" />
+
         <!-- 其他功能占位 -->
         <div v-else class="page-placeholder">
           <div class="placeholder-card">
@@ -67,6 +70,7 @@ import SideMenu from '@/components/SideMenu.vue'
 import Dashboard from '@/views/Dashboard.vue'
 import StoreReceive from '@/views/StoreReceive.vue'
 import StoreStaging from '@/views/StoreStaging.vue'
+import StoreLoad from '@/views/StoreLoad.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
