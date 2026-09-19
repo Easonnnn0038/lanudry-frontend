@@ -23,6 +23,9 @@
         <!-- 装车送厂 -->
         <StoreLoad v-else-if="activeMenu === 'store-load'" />
 
+        <!-- 衣物回店：按批次、逐大件验收 -->
+        <StoreBack v-else-if="activeMenu === 'store-back'" />
+
         <!-- 其他功能占位 -->
         <div v-else class="page-placeholder">
           <div class="placeholder-card">
@@ -71,6 +74,7 @@ import Dashboard from '@/views/Dashboard.vue'
 import StoreReceive from '@/views/StoreReceive.vue'
 import StoreStaging from '@/views/StoreStaging.vue'
 import StoreLoad from '@/views/StoreLoad.vue'
+import StoreBack from '@/views/StoreBack.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

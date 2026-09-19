@@ -56,6 +56,16 @@ export const factoryDispatchApi = {
   createBatch: (data) => request.post('/factory-dispatch/create', data)
 }
 
+/** 回店批次与大件逐件签收 */
+export const storeReturnApi = {
+  batches: () => request.get('/store-return/batches'),
+  batch: (id) => request.get(`/store-return/batches/${id}`),
+  packageDetail: (id, packageNo) => request.get(`/store-return/batches/${id}/packages/${encodeURIComponent(packageNo)}`),
+  scan: (id, packageNo, barcode) => request.post(`/store-return/batches/${id}/scan`, { packageNo, barcode }),
+  confirm: (id, packageNo) => request.post(`/store-return/batches/${id}/confirm`, { packageNo }),
+  reportException: (id, packageNo, reason) => request.post(`/store-return/batches/${id}/exception`, { packageNo, reason })
+}
+
 /** 照片相关接口（瑕疵拍照取证） */
 export const photoApi = {
   /** 上传照片（multipart/form-data） */
