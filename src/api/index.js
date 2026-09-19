@@ -66,6 +66,15 @@ export const storeReturnApi = {
   reportException: (id, packageNo, reason) => request.post(`/store-return/batches/${id}/exception`, { packageNo, reason })
 }
 
+/** 取衣码 + 手机号核验、整单逐件交付 */
+export const pickupApi = {
+  prepareLegacy: () => request.post('/pickup/prepare-legacy'),
+  ready: () => request.get('/pickup/ready'),
+  lookup: (phone, pickupCode) => request.post('/pickup/lookup', { phone, pickupCode }),
+  scan: (phone, pickupCode, barcode) => request.post('/pickup/scan', { phone, pickupCode, barcode }),
+  close: (phone, pickupCode) => request.post('/pickup/close', { phone, pickupCode })
+}
+
 /** 照片相关接口（瑕疵拍照取证） */
 export const photoApi = {
   /** 上传照片（multipart/form-data） */

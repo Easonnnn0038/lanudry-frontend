@@ -26,6 +26,9 @@
         <!-- 衣物回店：按批次、逐大件验收 -->
         <StoreBack v-else-if="activeMenu === 'store-back'" />
 
+        <!-- 取衣闭单 -->
+        <StoreClose v-else-if="activeMenu === 'store-close'" />
+
         <!-- 其他功能占位 -->
         <div v-else class="page-placeholder">
           <div class="placeholder-card">
@@ -75,6 +78,7 @@ import StoreReceive from '@/views/StoreReceive.vue'
 import StoreStaging from '@/views/StoreStaging.vue'
 import StoreLoad from '@/views/StoreLoad.vue'
 import StoreBack from '@/views/StoreBack.vue'
+import StoreClose from '@/views/StoreClose.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
