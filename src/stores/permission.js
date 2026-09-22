@@ -17,7 +17,7 @@ const allMenus = [
       { index: 'store-close', title: '取衣闭单', icon: 'CircleCheck' },
       { index: 'store-shelf', title: '上架/下架', icon: 'Goods' },
       { index: 'store-query', title: '衣物查询', icon: 'Search' },
-      { index: 'store-error', title: '错误回店', icon: 'Warning' },
+      { index: 'store-error', title: '错误回店', icon: 'Warning', roles: ['ADMIN'] },
       { index: 'store-extra', title: '补收附件', icon: 'Plus' }
     ]
   },
@@ -33,9 +33,8 @@ const allMenus = [
   {
     title: '系统管理',
     icon: 'Setting',
-    roles: ['ADMIN'],
     children: [
-      { index: 'sys-delete', title: '删除查询', icon: 'Delete', roles: ['ADMIN'] },
+      { index: 'sys-delete', title: '删除查询', icon: 'Delete' },
       { index: 'sys-remote', title: '远程维护', icon: 'Monitor', roles: ['ADMIN'] }
     ]
   }

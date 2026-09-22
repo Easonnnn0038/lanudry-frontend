@@ -4,8 +4,6 @@ import request from './request'
 export const categoryApi = {
   /** 全部类别（按分组排序） */
   list: () => request.get('/category/list'),
-  /** 按分组返回Map */
-  grouped: () => request.get('/category/grouped'),
   /** 模糊搜索类别 */
   search: (keyword) => request.get('/category/search', { params: { keyword } })
 }
@@ -36,8 +34,6 @@ export const memberCardApi = {
 export const orderApi = {
   /** 提交收衣订单（核心） */
   receive: (data) => request.post('/order/receive', data),
-  /** 今日单数 */
-  todayCount: () => request.get('/order/today-count'),
   /** 生成条码图 */
   barcode: (code, w = 360, h = 80) => request.get('/order/barcode', { params: { code, w, h } }),
   /** 暂存订单列表 */
@@ -74,6 +70,54 @@ export const pickupApi = {
   scan: (phone, pickupCode, barcode) => request.post('/pickup/scan', { phone, pickupCode, barcode }),
   close: (phone, pickupCode) => request.post('/pickup/close', { phone, pickupCode })
 }
+
+export const storeOperationsApi = {
+  notifications: () => request.get('/store-operations/notifications'),
+  notify: (orderNo, channel) => request.post('/store-operations/notifications', { orderNo, channel }),
+  clothes: (keyword) => request.get('/store-operations/clothes', { params: { keyword } }),
+  errors: () => request.get('/store-operations/return-errors'),
+  createError: (data) => request.post('/store-operations/return-errors', data),
+  resolveError: (id, action, note) => request.post(`/store-operations/return-errors/${id}/resolve`, { action, note })
+}
+
+export const storeStatisticsApi = {
+  business: (from, to) => request.get('/store-statistics/business', { params: { from, to } }),
+  income: (from, to) => request.get('/store-statistics/income', { params: { from, to } })
+}
+
+export const supplementApi = {
+  searchOrders: (keyword) => request.get('/supplements/orders', { params: { keyword } }),
+  detail: (orderNo) => request.get(`/supplements/orders/${encodeURIComponent(orderNo)}`),
+  create: (data) => request.post('/supplements', data),
+  dispatch: (id) => request.post(`/supplements/${id}/dispatch`)
+}
+
+export const orderCancelApi = {
+  eligible: (keyword) => request.get('/order-cancel/eligible', { params: { keyword } }),
+  search: (keyword = '') => request.get('/order-cancel/search', { params: { keyword } }),
+  apply: (orderNo, reason) => request.post('/order-cancel/apply', { orderNo, reason }),
+  review: (id, action, note) => request.post(`/order-cancel/${id}/review`, { action, note }),
+  restore: (id) => request.post(`/order-cancel/${id}/restore`)
+}
+
+export const maintenanceApi = {
+  status: () => request.get('/maintenance/status'),
+  events: (params) => request.get('/maintenance/events', { params }),
+  updateEvent: (id, status, note) => request.post(`/maintenance/events/${id}/status`, { status, note }),
+  audit: (params) => request.get('/maintenance/audit', { params }),
+  exportEvents: (params) => request.get('/maintenance/events/export', { params, responseType: 'blob' })
+}
+
+export const shelfApi = {
+  overview: () => request.get('/shelf/overview'),
+  search: (keyword) => request.get('/shelf/search', { params: { keyword } }),
+  allocate: (data) => request.post('/shelf/allocate', data),
+  confirm: (barcode, shelfNo) => request.post('/shelf/confirm', { barcode, shelfNo }),
+  cancel: (barcode) => request.post('/shelf/cancel', { barcode }),
+  resize: (maxShelfNo) => request.post('/shelf/resize', { maxShelfNo }),
+  disable: (shelfNo, disabled) => request.post('/shelf/disable', { shelfNo, disabled })
+}
+
 
 /** 照片相关接口（瑕疵拍照取证） */
 export const photoApi = {

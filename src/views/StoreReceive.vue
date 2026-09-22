@@ -292,7 +292,6 @@
                 <div class="item-desc">
                   <div v-if="row.defect"><el-tag size="small" type="danger">瑕疵:{{ row.defect }}</el-tag></div>
                   <div v-if="row.special"><el-tag size="small" type="warning">特殊:{{ row.special }}</el-tag></div>
-                  <div v-if="row.shelfCode"><el-tag size="small" type="info">货架:{{ row.shelfCode }}</el-tag></div>
                   <el-button link size="small" type="primary" @click="editItem(row)">编辑</el-button>
                 </div>
               </template>
@@ -611,9 +610,6 @@
         <el-form-item label="特殊处理">
           <el-input v-model="itemDetail.special" placeholder="特殊处理要求（选填）" maxlength="50" />
         </el-form-item>
-        <el-form-item label="货架号">
-          <el-input v-model="itemDetail.shelfCode" placeholder="A-01-01（选填）" maxlength="20" />
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="itemDetailVisible = false">取消</el-button>
@@ -760,7 +756,7 @@ const itemDetail = reactive({
   mode: 'add', // add=新增类别时  edit=编辑已有明细
   editId: null, // 编辑时对应 form.items 的 itemTempId
   categoryId: null, categoryGroup: '', categoryName: '',
-  color: '', brand: '', size: '', defect: '', special: '', shelfCode: '',
+  color: '', brand: '', size: '', defect: '', special: '',
   // 新增时暂存的原始类别信息（用于生成明细行）
   _category: null
 })
@@ -1053,7 +1049,6 @@ function onAddCategory(c) {
   itemDetail.size = ''
   itemDetail.defect = ''
   itemDetail.special = ''
-  itemDetail.shelfCode = ''
   itemDetail._category = c
   itemDetailVisible.value = true
 }
@@ -1070,7 +1065,6 @@ function editItem(row) {
   itemDetail.size = row.size || ''
   itemDetail.defect = row.defect || ''
   itemDetail.special = row.special || ''
-  itemDetail.shelfCode = row.shelfCode || ''
   itemDetail._category = null
   itemDetailVisible.value = true
 }
@@ -1097,8 +1091,7 @@ function confirmItemDetail() {
       brand: itemDetail.brand,
       size: itemDetail.size,
       defect: itemDetail.defect,
-      special: itemDetail.special,
-      shelfCode: itemDetail.shelfCode
+      special: itemDetail.special
     })
     ElMessage.success(`已添加 ${itemDetail.categoryName}`)
   } else {
@@ -1109,7 +1102,6 @@ function confirmItemDetail() {
       item.size = itemDetail.size
       item.defect = itemDetail.defect
       item.special = itemDetail.special
-      item.shelfCode = itemDetail.shelfCode
       ElMessage.success('已更新')
     }
   }
@@ -1480,8 +1472,7 @@ async function submitOrder() {
         brand: it.brand || '',
         size: it.size || '',
         defect: it.defect || '',
-        special: it.special || '',
-        shelfCode: it.shelfCode || ''
+        special: it.special || ''
       }))
     }
     const resp = await orderApi.receive(payload)

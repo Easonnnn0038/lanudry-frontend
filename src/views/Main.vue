@@ -26,6 +26,23 @@
         <!-- 衣物回店：按批次、逐大件验收 -->
         <StoreBack v-else-if="activeMenu === 'store-back'" />
 
+        <StoreNotify v-else-if="activeMenu === 'store-notify'" />
+
+        <StoreQuery v-else-if="activeMenu === 'store-query'" />
+
+        <StoreError v-else-if="activeMenu === 'store-error'" />
+
+        <StoreSupplement v-else-if="activeMenu === 'store-extra'" />
+
+        <StoreShelf v-else-if="activeMenu === 'store-shelf'" />
+
+        <StoreStats v-else-if="activeMenu === 'stat-business' || activeMenu === 'stat-finance'" :mode="activeMenu" />
+
+        <OrderCancel v-else-if="activeMenu === 'sys-delete'" />
+
+        <MaintenanceCenter v-else-if="activeMenu === 'sys-remote'" />
+
+
         <!-- 取衣闭单 -->
         <StoreClose v-else-if="activeMenu === 'store-close'" />
 
@@ -78,6 +95,14 @@ import StoreReceive from '@/views/StoreReceive.vue'
 import StoreStaging from '@/views/StoreStaging.vue'
 import StoreLoad from '@/views/StoreLoad.vue'
 import StoreBack from '@/views/StoreBack.vue'
+import StoreNotify from '@/views/StoreNotify.vue'
+import StoreQuery from '@/views/StoreQuery.vue'
+import StoreError from '@/views/StoreError.vue'
+import StoreSupplement from '@/views/StoreSupplement.vue'
+import StoreShelf from '@/views/StoreShelf.vue'
+import StoreStats from '@/views/StoreStats.vue'
+import OrderCancel from '@/views/OrderCancel.vue'
+import MaintenanceCenter from '@/views/MaintenanceCenter.vue'
 import StoreClose from '@/views/StoreClose.vue'
 
 const router = useRouter()

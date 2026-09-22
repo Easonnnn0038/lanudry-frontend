@@ -23,27 +23,3 @@ export function getUserInfo() {
     method: 'get'
   })
 }
-
-/**
- * 退出登录
- * @returns {Promise} 退出结果
- */
-export function logout() {
-  return request({
-    url: '/auth/logout',
-    method: 'post'
-  })
-}
-
-/**
- * 修改密码
- * @param {Object} data - { oldPassword, newPassword }
- * @returns {Promise} 修改结果
- */
-export function changePassword(data) {
-  return request({
-    url: '/auth/password',
-    method: 'put',
-    data
-  })
-}

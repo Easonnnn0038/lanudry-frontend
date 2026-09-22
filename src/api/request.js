@@ -12,6 +12,22 @@ const service = axios.create({
   }
 })
 
+const reported = new Map()
+function reportClientError(config, message, status) {
+  const path = config?.url || window.location.hash || 'unknown'
+  if (path.includes('/maintenance/')) return
+  const key = `${status || ''}|${path}|${message}`
+  const now = Date.now()
+  if (now - (reported.get(key) || 0) < 60000) return
+  reported.set(key, now)
+  const token = localStorage.getItem('token')
+  if (!token) return
+  fetch('http://localhost:8080/api/maintenance/client-error', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ module: '门店前端', message: String(message || '请求失败').slice(0, 1000), path, clientVersion: '1.0.0' })
+  }).catch(() => {})
+}
+
 // 请求拦截器
 service.interceptors.request.use(
   (config) => {
@@ -57,6 +73,7 @@ service.interceptors.response.use(
     }
 
     // 其他错误，弹出错误提示（登录接口的错误保持原样，会被 Login.vue 的 catch 处理）
+    reportClientError(response.config, res.message, res.code)
     ElMessage.error(res.message || '请求失败')
     return Promise.reject(new Error(res.message || '请求失败'))
   },
@@ -96,6 +113,7 @@ service.interceptors.response.use(
 
     // 其他错误（包括登录接口的 401/用户名密码错误）：显示具体消息，不要跳登录页，不要显示"登录过期"
     const message = error.response?.data?.message || error.message || '请求失败'
+    reportClientError(error.config, message, status)
     if (!url.includes('/auth/login')) {
       ElMessage.error(message)
     }

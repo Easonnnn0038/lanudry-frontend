@@ -1,9 +1,9 @@
 <template>
   <div class="back-page">
-    <header class="page-header"><div><h2>衣物回店</h2><p>按回店批次验收；大件内衣物必须全部核对，其他大件可先签收。</p></div><el-button @click="loadBatches">刷新批次</el-button></header>
+    <header class="page-header"><div><h2>衣物回店</h2><p>回店批次 RB → 大件 PK → 逐件衣物码；一个大件全部核对后签收。</p></div><el-button @click="loadBatches">刷新批次</el-button></header>
     <div class="layout">
       <aside class="batch-list">
-        <h3>回店批次</h3>
+        <h3>回店批次（RB）</h3>
         <el-empty v-if="!batches.length" description="暂无回店批次" />
         <button v-for="entry in batches" :key="entry.id" class="batch-button" :class="{ active: batch?.id === entry.id }" @click="openBatch(entry.id)">
           <strong>{{ entry.batchNo }}</strong>
@@ -14,12 +14,12 @@
       <main class="batch-detail">
         <el-empty v-if="!batch" description="请选择左侧回店批次" />
         <template v-else>
-          <div class="batch-title"><h3>批次 {{ batch.batchNo }}</h3><span>发货时间 {{ formatTime(batch.dispatchTime) }}</span></div>
+          <div class="batch-title"><h3>回店批次 {{ batch.batchNo }}</h3><span>发货时间 {{ formatTime(batch.dispatchTime) }}</span></div>
           <div class="check-code"><el-input v-model.trim="packageCode" placeholder="先输入大件码（扫码枪后续接入）" clearable @keyup.enter="openPackage" /><el-button type="primary" :disabled="!packageCode" @click="openPackage">核对大件</el-button></div>
           <el-table :data="batch.packages" border stripe>
             <el-table-column prop="packageNo" label="大件码" min-width="190" />
             <el-table-column prop="orderNo" label="订单号" min-width="160" />
-            <el-table-column prop="sourceBatchNo" label="原送厂批次" min-width="165" />
+            <el-table-column prop="sourceBatchNo" label="原送厂批次（PC）" min-width="165" />
             <el-table-column label="衣物核对" width="125"><template #default="{ row }">{{ row.scannedCount }}/{{ row.expectedCount }}</template></el-table-column>
             <el-table-column label="状态" width="125"><template #default="{ row }"><el-tag :type="tagType(row.status)">{{ statusLabel(row.status) }}</el-tag></template></el-table-column>
             <el-table-column label="操作" width="110"><template #default="{ row }"><el-button link type="primary" @click="packageCode = row.packageNo; openPackage()">查看</el-button></template></el-table-column>
@@ -30,7 +30,7 @@
             <el-alert v-if="pkg.exceptionReason" :title="`异常待客服：${pkg.exceptionReason}`" type="error" :closable="false" show-icon />
             <div v-if="pkg.status === 'WAIT_SCAN'" class="check-code"><el-input v-model.trim="itemCode" placeholder="逐件输入衣物条码，按回车确认" clearable @keyup.enter="scanItem" /><el-button type="primary" :disabled="!itemCode || busy" @click="scanItem">核对衣物</el-button></div>
             <div class="items"><div v-for="item in pkg.items" :key="item.barcode" class="item" :class="{ checked: item.scanned }"><span>{{ item.categoryName }} {{ item.color || '' }}<small>{{ item.barcode }}</small></span><b>{{ item.scanned ? '已核对' : '待核对' }}</b></div></div>
-            <div v-if="pkg.status === 'WAIT_SCAN'" class="actions"><el-button type="danger" plain :disabled="busy" @click="reportException">异常，交客服处理</el-button><el-button type="success" size="large" :disabled="busy || Number(pkg.scannedCount) !== Number(pkg.expectedCount)" @click="confirmPackage">确认整个大件签收</el-button></div>
+            <div v-if="pkg.status === 'WAIT_SCAN'" class="actions"><el-button v-if="authStore.role === 'ADMIN'" type="danger" plain :disabled="busy" @click="reportException">登记异常</el-button><el-button type="success" size="large" :disabled="busy || Number(pkg.scannedCount) !== Number(pkg.expectedCount)" @click="confirmPackage">确认整个大件签收</el-button></div>
           </section>
         </template>
       </main>
@@ -42,6 +42,8 @@
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeReturnApi } from '@/api'
+import { useAuthStore } from '@/stores/auth'
+const authStore = useAuthStore()
 const batches = ref([]); const batch = ref(null); const pkg = ref(null)
 const packageCode = ref(''); const itemCode = ref(''); const busy = ref(false)
 const statusLabel = code => ({ WAIT_SCAN: '待签收', RECEIVED: '已签收', EXCEPTION: '异常待客服' })[code] || code
@@ -73,7 +75,7 @@ async function confirmPackage() {
   finally { busy.value = false }
 }
 async function reportException() {
-  const { value } = await ElMessageBox.prompt('请描述少件、多件、错店或条码损坏等异常。提交后大件会冻结，等待客服处理。', '报告异常', { inputValidator: text => !!text?.trim() || '请填写异常原因' })
+  const { value } = await ElMessageBox.prompt('请描述缺件、错件或条码损坏等异常。提交后大件会冻结，并显示在“错误回店”中。错店大件请直接到“错误回店”登记。', '报告异常', { inputValidator: text => !!text?.trim() || '请填写异常原因' })
   busy.value = true
   try { await storeReturnApi.reportException(batch.value.id, pkg.value.packageNo, value.trim()); await refresh(); ElMessage.warning('异常大件已冻结；其他大件仍可签收') }
   finally { busy.value = false }

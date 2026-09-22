@@ -1,6 +1,6 @@
 <template>
   <div class="pickup-page">
-    <header><div><h2>取衣闭单</h2><p>手机号与四位取衣码同时匹配，逐件核对完成后整单交付。</p></div><el-button @click="loadReady">刷新待取订单</el-button></header>
+    <header><div><h2>取衣闭单</h2><p>取衣码仅供客户领取，回店后生成；它不是订单号、大件码或衣物条码。</p></div><el-button @click="loadReady">刷新待取订单</el-button></header>
     <div class="pickup-grid">
       <section class="card">
         <h3>1. 核验取衣信息</h3>

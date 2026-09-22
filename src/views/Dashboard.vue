@@ -58,7 +58,7 @@
         <table class="recent-table">
           <thead>
             <tr>
-              <th>取衣码</th>
+              <th>订单号</th>
               <th>客户</th>
               <th>衣物数</th>
               <th>状态</th>
@@ -67,8 +67,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="order in recentOrders" :key="order.code">
-              <td class="code-cell">{{ order.code }}</td>
+            <tr v-for="order in recentOrders" :key="order.orderNo">
+              <td class="code-cell">{{ order.orderNo }}</td>
               <td>{{ order.customer }}</td>
               <td>{{ order.items }}</td>
               <td>
@@ -88,6 +88,51 @@
         </table>
       </div>
     </div>
+
+    <el-dialog
+      v-model="detailVisible"
+      :title="`订单详情 - ${detail?.orderNo || ''}`"
+      width="min(960px, 92vw)"
+      :close-on-click-modal="false"
+      class="order-detail-dialog"
+    >
+      <div v-loading="detailLoading" class="detail-body">
+        <template v-if="detail">
+          <el-descriptions :column="3" border>
+            <el-descriptions-item label="客户">{{ detail.customerName }}</el-descriptions-item>
+            <el-descriptions-item label="联系电话">{{ detail.customerPhone }}</el-descriptions-item>
+            <el-descriptions-item label="订单状态">{{ detail.statusLabel }}</el-descriptions-item>
+            <el-descriptions-item label="收衣时间">{{ formatTime(detail.receiveTime) }}</el-descriptions-item>
+            <el-descriptions-item label="衣物件数">{{ detail.items?.length || 0 }} 件</el-descriptions-item>
+            <el-descriptions-item label="实收金额">¥{{ fmtAmount(detail.totalReceivable) }}</el-descriptions-item>
+          </el-descriptions>
+
+          <h3 class="detail-heading">衣物明细</h3>
+          <el-table :data="detail.items || []" border stripe>
+            <el-table-column type="index" label="#" width="50" align="center" />
+            <el-table-column prop="barcode" label="衣物码" min-width="145" />
+            <el-table-column prop="categoryName" label="类别" min-width="130" />
+            <el-table-column prop="color" label="颜色" width="80" />
+            <el-table-column prop="brand" label="品牌" width="100" />
+            <el-table-column prop="size" label="尺码" width="75" />
+            <el-table-column label="货架号" width="90" align="center">
+              <template #default="{ row }">{{ row.shelfCode || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="瑕疵/特殊处理" min-width="170">
+              <template #default="{ row }">
+                <div>{{ row.defect || '-' }}</div>
+                <small v-if="row.special">特殊：{{ row.special }}</small>
+              </template>
+            </el-table-column>
+            <el-table-column label="小计" width="90" align="right">
+              <template #default="{ row }">¥{{ fmtAmount(row.subtotal) }}</template>
+            </el-table-column>
+          </el-table>
+          <div v-if="detail.remark" class="order-remark"><b>订单备注：</b>{{ detail.remark }}</div>
+        </template>
+      </div>
+      <template #footer><el-button @click="detailVisible = false">关闭</el-button></template>
+    </el-dialog>
   </div>
 </template>
 
@@ -169,7 +214,7 @@ const actions = ref([
   {
     key: 'pickup',
     title: '取衣',
-    desc: '客户凭手机号或取衣码取衣',
+    desc: '凭手机号＋回店后生成的四位取衣码取衣',
     btnText: '取衣核销',
     primary: false,
     icon: Shop,
@@ -201,6 +246,9 @@ const actions = ref([
 // 最近订单（来自后端实时数据）
 const recentLoading = ref(false)
 const recentOrders = ref([])
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detail = ref(null)
 
 /** 后端订单状态 → 前端表格样式 class（washing/ready/done） */
 function statusClass(status) {
@@ -230,7 +278,7 @@ async function loadRecent() {
     const list = await orderApi.dashboardRecent(8)
     recentOrders.value = (list || []).map((o) => ({
       orderId: o.orderId,
-      code: o.code,
+      orderNo: o.orderNo,
       customer: o.customer,
       items: `${o.items || 0}件`,
       status: o.statusLabel,
@@ -261,8 +309,22 @@ function emitNavigate(key) {
   window.dispatchEvent(new CustomEvent('navigate-menu', { detail: key }))
 }
 
-function handleViewOrder(order) {
-  ElMessage.info(`查看订单 ${order.code} 详情`)
+async function handleViewOrder(order) {
+  detailVisible.value = true
+  detailLoading.value = true
+  detail.value = null
+  try {
+    detail.value = await orderApi.stagingDetail(order.orderId)
+  } catch (e) {
+    detailVisible.value = false
+    ElMessage.error('加载订单详情失败')
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function formatTime(value) {
+  return value ? String(value).replace('T', ' ').slice(0, 16) : '-'
 }
 
 function handleProfileClick() {
@@ -287,6 +349,12 @@ export default {
   background: #ffffff;
   min-height: 100%;
 }
+
+.detail-body { min-height: 180px; }
+.detail-heading { margin: 22px 0 12px; font-size: 16px; color: #1f2937; }
+.detail-body small { display: block; margin-top: 4px; color: #b45309; }
+.order-remark { margin-top: 16px; padding: 12px 14px; border-radius: 8px; background: #f8fafc; color: #475569; }
+.order-detail-dialog :deep(.el-dialog__body) { max-height: 70vh; overflow-y: auto; }
 
 /* 页面标题区 */
 .page-header {

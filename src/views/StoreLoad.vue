@@ -5,7 +5,7 @@
       <el-button size="large" :icon="Refresh" @click="loadOrders">刷新</el-button>
     </div>
 
-    <el-alert title="每个订单默认打包为一个大件；超过5件的拆包功能将在确认包装操作后补充" type="info" :closable="false" show-icon />
+    <el-alert title="编号关系：送厂批次 PC 包含多个大件 PK；每个大件属于一笔订单，内有逐件衣物码。取衣码要等整单回店后才生成。超过5件的拆包功能待补充。" type="info" :closable="false" show-icon />
 
     <el-card class="order-card" shadow="never">
       <el-table ref="tableRef" v-loading="loading" :data="orders" row-key="id" size="large" @selection-change="selected = $event">
@@ -31,7 +31,7 @@
       <el-result icon="success" title="打包送厂成功" :sub-title="`送厂批次：${result?.batchNo || ''}`" />
       <el-table :data="result?.packages || []" border>
         <el-table-column prop="orderNo" label="订单号" />
-        <el-table-column prop="packageNo" label="大件包装码" />
+        <el-table-column prop="packageNo" label="大件码（PK）" />
         <el-table-column prop="itemCount" label="件数" width="80" />
       </el-table>
       <template #footer><el-button type="primary" size="large" @click="resultVisible = false; loadOrders()">完成</el-button></template>

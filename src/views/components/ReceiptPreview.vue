@@ -18,13 +18,13 @@
             <el-icon><Collection /></el-icon> 条码标签
           </el-radio-button>
           <el-radio-button label="all">
-            <el-icon><Document /></el-icon> 全部一起
+            <el-icon><Document /></el-icon> 全部预览
           </el-radio-button>
         </el-radio-group>
       </div>
       <div class="tools-right">
-        <el-button :icon="Printer" type="primary" @click="doPrint">打印</el-button>
-        <el-button :icon="Download" @click="doPrint">打印为PDF</el-button>
+        <el-button :icon="Printer" @click="doPrint('receipt')">打印80mm凭证</el-button>
+        <el-button :icon="Printer" type="primary" @click="doPrint('tags')">打印30×110mm标签</el-button>
       </div>
     </div>
 
@@ -127,16 +127,10 @@
 
         <div class="divider-dash">------------------------------</div>
 
-        <!-- 订单条码 -->
-        <div class="t-barcode-box">
-          <img :src="orderBarcodeUri" class="order-barcode" alt="order barcode" />
-          <div class="mono small">{{ data?.orderNo }}</div>
-        </div>
-
         <div class="t-notice">
           <div class="t-center small">◆ 客 户 须 知 ◆</div>
           <ol>
-            <li>请妥善保管本凭证，取衣须出示。</li>
+            <li>取衣时请提供手机号和衣物回店后告知的四位取衣码。</li>
             <li>洗涤以衣物内标签为准，特殊处理请提前说明。</li>
             <li>取衣周期：普通衣物3-5天，特殊衣物7-10天。</li>
             <li>如未收到取衣通知，请致电门店查询。</li>
@@ -155,32 +149,25 @@
         </div>
       </div>
 
-      <!-- === 条码标签（每件一张 30mm 宽 × 110mm 高，竖排细长条） === -->
+      <!-- 每件衣物一张 30×110mm 标签；不打印客户姓名和完整电话，工厂工人不接触客户隐私。 -->
       <div v-if="viewMode !== 'receipt'" class="tags-wrap">
         <div
           v-for="it in data?.items"
           :key="'tag-' + it.itemSeq"
           class="tag-30-110"
         >
-          <!-- 左栏：时间 / 姓名 / 电话 -->
-          <div class="tag-left">
-            <div class="tag-line">收衣:&nbsp;{{ fmtDateTime(data?.receiveTime) }}</div>
-            <div class="tag-line">姓名:&nbsp;{{ data?.customerName }}</div>
-            <div class="tag-line">电话:&nbsp;{{ data?.customerPhone }}</div>
+          <div class="tag-head">
+            <strong>{{ data?.storeName || '小木棒洗衣' }}</strong>
+            <span>{{ it.itemSeq }}/{{ data?.totalCount }} 件</span>
           </div>
-          <!-- 右栏：条码 / 条码号 / 附+数量 / 类别 / 颜色备注 / 门店 -->
-          <div class="tag-right">
-            <img :src="it.barcodeImageBase64" class="tag-barcode" alt="barcode" />
-            <div class="tag-barcode-text mono">{{ it.barcode }}</div>
-            <div class="tag-line">附{{ it.quantity || 0 }}</div>
-            <div class="tag-line tag-bold">{{ it.categoryName }}</div>
-            <div v-if="it.color || it.defect || it.special" class="tag-line">
-              <span v-if="it.color">{{ it.color }}</span>
-              <span v-if="it.defect">{{ it.defect }}</span>
-              <span v-if="it.special">{{ it.special }}</span>
-            </div>
-            <div class="tag-store">小木棒洗衣</div>
+          <div class="tag-category">{{ it.categoryName }}</div>
+          <div class="tag-description">
+            <span v-if="it.color">颜色：{{ it.color }}</span>
+            <span v-if="it.special || it.defect">{{ it.special || it.defect }}</span>
           </div>
+          <div class="tag-scan-zone"><img :src="it.barcodeImageBase64" class="tag-barcode" alt="衣物条码" /></div>
+          <div class="tag-code mono">{{ it.barcode }}</div>
+          <div class="tag-foot"><span>订单 {{ data?.orderNo }}</span><span>收衣 {{ fmtTagDate(data?.receiveTime) }}</span></div>
         </div>
       </div>
     </div>
@@ -189,16 +176,16 @@
       <el-button @click="$emit('reset'); onVisible(false)">
         完成，开启新单
       </el-button>
-      <el-button type="primary" :icon="Printer" @click="doPrint">打印凭证+标签</el-button>
+      <el-button :icon="Printer" @click="doPrint('receipt')">打印凭证</el-button>
+      <el-button type="primary" :icon="Printer" @click="doPrint('tags')">打印标签</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Tickets, Collection, Document, Printer, Download } from '@element-plus/icons-vue'
-import { orderApi } from '@/api'
+import { Tickets, Collection, Document, Printer } from '@element-plus/icons-vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -210,19 +197,6 @@ function onVisible(v) { emit('update:modelValue', v) }
 
 const viewMode = ref('all') // receipt / tags / all
 const dft = ref(true)       // 小票使用仿宋字体（更接近80mm热敏机默认）
-const orderBarcodeUri = ref('')
-
-// 订单号生成条码图
-watch(() => props.data?.orderNo, async (no) => {
-  if (no) {
-    try {
-      orderBarcodeUri.value = await orderApi.barcode(no, 560, 90)
-    } catch {
-      orderBarcodeUri.value = ''
-    }
-  }
-}, { immediate: true })
-
 // ============= 工具 =============
 function fmt(v) {
   const n = v == null ? 0 : Number(v)
@@ -234,15 +208,20 @@ function fmtDateTime(v) {
   const p = n => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
+function fmtTagDate(v) { return fmtDateTime(v).slice(2, 16) }
 function maskPhone(p) {
   if (!p) return ''
   return p.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2')
 }
 
 // ============= 打印 =============
-function doPrint() {
-  // 打开新窗口写入打印专用样式，避免污染主界面
-  const printHtml = generatePrintHtml()
+function doPrint(mode) {
+  if (mode === 'tags' && (!props.data?.items?.length || props.data.items.some(it => !it.barcodeImageBase64))) {
+    ElMessage.error('衣物条码图未准备好，请重新打开收衣预览后再打印')
+    return
+  }
+  // 小票与标签必须分别选择各自的纸张和打印机，不能混在同一张 A4 上缩放打印。
+  const printHtml = generatePrintHtml(mode)
   const w = window.open('', '_blank',
     'toolbar=no,menubar=no,scrollbars=yes,width=900,height=700')
   if (!w) {
@@ -251,14 +230,21 @@ function doPrint() {
   }
   w.document.write(printHtml)
   w.document.close()
-  setTimeout(() => {
-    try { w.focus(); w.print() }
-    catch (e) { ElMessage.error('打印异常：' + e.message) }
-  }, 500)
+  Promise.all(Array.from(w.document.images, img => img.complete
+    ? Promise.resolve()
+    : new Promise(resolve => { img.onload = resolve; img.onerror = resolve })))
+    .then(() => { w.focus(); w.print() })
+    .catch(e => ElMessage.error('打印异常：' + e.message))
 }
 
-/** 生成完整可打印HTML（凭证+条码标签） */
-function generatePrintHtml() {
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char])
+}
+
+/** 分别生成小票或标签的打印 HTML；各自使用真实纸张尺寸。 */
+function generatePrintHtml(mode) {
   const items = props.data?.items || []
   const d = props.data || {}
 
@@ -322,14 +308,10 @@ function generatePrintHtml() {
       ${d.usedMemberCard ? `<div class="card-line">卡：${d.cardNo || ''}（${d.cardTypeName || ''}）余额 ¥${fmt(d.cardBalanceAfter)}</div>` : ''}
     </div>
     <div class="divider-dash">------------------------------</div>
-    <div class="t-barcode-box">
-      <img src="${orderBarcodeUri.value}" class="order-barcode" alt=""/>
-      <div class="mono small">${d.orderNo || ''}</div>
-    </div>
     <div class="t-notice">
       <div class="t-center small">◆ 客 户 须 知 ◆</div>
       <ol>
-        <li>请妥善保管本凭证，取衣须出示。</li>
+        <li>取衣时请提供手机号和衣物回店后告知的四位取衣码。</li>
         <li>洗涤以衣物内标签为准，特殊处理请提前说明。</li>
         <li>取衣周期：普通衣物3-5天，特殊衣物7-10天。</li>
         <li>如未收到取衣通知，请致电门店查询。</li>
@@ -349,22 +331,21 @@ function generatePrintHtml() {
 
   // ===== 条码标签 =====
   const tags = items.map(it => {
-    const desc = [it.color, it.defect, it.special].filter(Boolean).join('')
+    const detail = it.special || it.defect
     return `
     <div class="tag-30-110">
-      <div class="tag-left">
-        <div class="tag-line">收衣:&nbsp;${fmtDateTime(d.receiveTime)}</div>
-        <div class="tag-line">姓名:&nbsp;${d.customerName || ''}</div>
-        <div class="tag-line">电话:&nbsp;${d.customerPhone || ''}</div>
+      <div class="tag-head">
+        <strong>${escapeHtml(d.storeName || '小木棒洗衣')}</strong>
+        <span>${escapeHtml(it.itemSeq)}/${escapeHtml(d.totalCount)} 件</span>
       </div>
-      <div class="tag-right">
-        <img src="${it.barcodeImageBase64 || ''}" class="tag-barcode" alt=""/>
-        <div class="tag-barcode-text mono">${it.barcode || ''}</div>
-        <div class="tag-line">附${it.quantity || 0}</div>
-        <div class="tag-line tag-bold">${it.categoryName || ''}</div>
-        ${desc ? `<div class="tag-line">${desc}</div>` : ''}
-        <div class="tag-store">小木棒洗衣</div>
+      <div class="tag-category">${escapeHtml(it.categoryName)}</div>
+      <div class="tag-description">
+        ${it.color ? `<span>颜色：${escapeHtml(it.color)}</span>` : ''}
+        ${detail ? `<span>${escapeHtml(detail)}</span>` : ''}
       </div>
+      <div class="tag-scan-zone"><img src="${escapeHtml(it.barcodeImageBase64)}" class="tag-barcode" alt="衣物条码"/></div>
+      <div class="tag-code mono">${escapeHtml(it.barcode)}</div>
+      <div class="tag-foot"><span>订单 ${escapeHtml(d.orderNo)}</span><span>收衣 ${escapeHtml(fmtTagDate(d.receiveTime))}</span></div>
     </div>`
   }).join('')
 
@@ -372,19 +353,13 @@ function generatePrintHtml() {
   return `<!doctype html>
 <html><head>
 <meta charset="utf-8" />
-<title>收衣凭证-${d.orderNo || ''}-小木棒洗衣</title>
+<title>${mode === 'tags' ? '衣物标签' : '收衣凭证'}-${escapeHtml(d.orderNo)}-小木棒洗衣</title>
 <style>
-/* ===== 纸张与尺寸：A4 预览 + 真实打印 80mm 小票 / 30×40mm 标签 ===== */
-@page {
-  size: A4;
-  margin: 8mm;
-}
+${mode === 'tags' ? '@page { size: 30mm 110mm; margin: 0; }' : '@page { margin: 0; }'}
 @media print {
-  @page { margin: 0; size: auto; }
-  body { margin: 0; background: #fff; }
+  body { margin: 0; padding: 0; background: #fff; }
   .no-print { display: none !important; }
-  .page-break { page-break-after: always; }
-  .page-break:last-child { page-break-after: auto; }
+  .sheet { display: block; width: auto; margin: 0; padding: 0; box-shadow: none; }
 }
 * { box-sizing: border-box; }
 body {
@@ -454,8 +429,6 @@ body {
 .t-table .cname { font-weight: 600; }
 .t-table .cdesc { font-size: 11px; color: #555; }
 
-.t-barcode-box { text-align: center; margin: 4px 0; }
-.order-barcode { width: 72mm; height: 15mm; display: inline-block; image-rendering: crisp-edges; }
 
 .t-notice { margin-top: 6px; }
 .t-notice ol { padding-left: 18px; margin: 4px 0; font-size: 11px; line-height: 1.6; }
@@ -475,88 +448,29 @@ body {
   border-bottom: 1px dashed #666;
 }
 
-/* ============ 条码标签（30mm × 110mm 竖排细长条，实物样式） ============ */
-.tags-wrap {
-  display: flex; flex-wrap: wrap; gap: 3mm;
-  width: 210mm; /* A4 宽 */
-  margin: 0 auto;
-  padding: 5mm;
-  background: #fff;
-}
+/* 每件独立占一页 30×110mm；只有衣物码用于扫描。 */
+.tags-wrap { display: flex; flex-wrap: wrap; gap: 3mm; padding: 5mm; background: #fff; }
 .tag-30-110 {
-  width: 30mm;       /* 3cm 宽 */
-  height: 110mm;     /* 11cm 高 */
-  border: 1px dashed #ccc;
-  display: flex;
-  flex-direction: row;
-  background: #fff;
-  font-family: "FangSong", "STFangsong", "Microsoft YaHei", sans-serif;
-  overflow: hidden;
-  page-break-inside: avoid;
-  break-inside: avoid;
+  width: 30mm; height: 110mm; padding: 2mm;
+  display: flex; flex-direction: column; flex: none;
+  background: #fff; color: #000; border: 1px dashed #bbb;
+  font-family: "Microsoft YaHei", Arial, sans-serif;
+  overflow: hidden; break-inside: avoid; page-break-inside: avoid;
 }
+.tag-head { height: 8mm; display: flex; align-items: center; justify-content: space-between; gap: 1mm; border-bottom: 1px solid #000; font-size: 10px; }
+.tag-head strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tag-head span { white-space: nowrap; font-weight: 700; }
+.tag-category { height: 10mm; display: flex; align-items: center; font-size: 13px; line-height: 1.2; font-weight: 800; overflow: hidden; }
+.tag-description { height: 10mm; display: flex; flex-direction: column; gap: 1mm; font-size: 10px; line-height: 1.1; overflow: hidden; }
+.tag-description span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tag-scan-zone { position: relative; height: 60mm; width: 26mm; flex: none; overflow: hidden; }
+.tag-barcode { position: absolute; width: 56mm; height: 18mm; max-width: none; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(90deg); display: block; }
+.tag-code { height: 8mm; display: flex; align-items: center; justify-content: center; font: 700 11px Consolas, "Courier New", monospace; white-space: nowrap; }
+.tag-foot { height: 10mm; border-top: 1px solid #000; display: flex; flex-direction: column; justify-content: center; gap: 1mm; font-size: 9px; line-height: 1.1; white-space: nowrap; }
 @media print {
-  .tags-wrap { width: auto; padding: 0; gap: 0; }
-  .tag-30-110 {
-    border: none;
-    width: 30mm; height: 110mm;
-    margin: 0;
-  }
-}
-/* 左栏：竖排 writing-mode */
-.tag-left {
-  width: 45%;
-  padding: 2mm 1mm 2mm 2mm;
-  writing-mode: vertical-rl;
-  -ms-writing-mode: tb-rl;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 4mm;
-  font-size: 10px;
-  line-height: 1.3;
-  color: #000;
-}
-/* 右栏：竖排 writing-mode */
-.tag-right {
-  width: 55%;
-  padding: 2mm 2mm 2mm 1mm;
-  writing-mode: vertical-rl;
-  -ms-writing-mode: tb-rl;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 3mm;
-  font-size: 10px;
-  line-height: 1.3;
-  color: #000;
-  border-left: 1px dashed #bbb;
-}
-.tag-line { font-size: 10px; line-height: 1.3; word-break: break-all; }
-.tag-bold { font-weight: 700; font-size: 11px; }
-.tag-store {
-  font-weight: 700;
-  letter-spacing: 1px;
-  margin-top: auto;
-  font-size: 10px;
-}
-/* 条码旋转90度变成竖向 */
-.tag-barcode {
-  width: auto;
-  height: 28mm;
-  max-width: 100%;
-  transform: rotate(90deg);
-  display: block;
-  image-rendering: crisp-edges;
-  object-fit: contain;
-  margin: -6mm 0;
-}
-.tag-barcode-text {
-  font-size: 9px;
-  letter-spacing: 0.5px;
-  font-family: Consolas, "Courier New", monospace;
+  .tags-wrap { display: block; width: 30mm; margin: 0; padding: 0; }
+  .tag-30-110 { border: 0; margin: 0; break-after: page; page-break-after: always; }
+  .tag-30-110:last-child { break-after: auto; page-break-after: auto; }
 }
 </style>
 </head>
@@ -566,10 +480,7 @@ body {
     请在打印对话框中选择对应的打印机和纸张，并勾选「实际尺寸 / 边距：无」。
   </div>
 
-  <div class="sheet">
-    ${(viewMode.value === 'receipt' || viewMode.value === 'all') ? receipt : ''}
-    ${(viewMode.value === 'tags' || viewMode.value === 'all') ? `<div class="tags-wrap ${viewMode.value === 'all' ? 'page-break' : ''}">${tags}</div>` : ''}
-  </div>
+  <div class="sheet">${mode === 'tags' ? `<div class="tags-wrap">${tags}</div>` : receipt}</div>
   <div class="hint no-print">—— 预览结束 ——</div>
 </body></html>`
 }
@@ -649,13 +560,6 @@ body {
 .t-table .cname { font-weight: 600; }
 .t-table .cdesc { font-size: 11px; color: #555; }
 
-.t-barcode-box { text-align: center; margin: 4px 0; }
-.order-barcode {
-  width: 72mm; height: 15mm;
-  display: inline-block;
-  image-rendering: pixelated;
-  object-fit: fill;
-}
 
 .t-notice { margin-top: 6px; }
 .t-notice ol { padding-left: 18px; margin: 4px 0; font-size: 11px; line-height: 1.6; }
@@ -669,7 +573,7 @@ body {
   border-top: 1px dashed #666; border-bottom: 1px dashed #666;
 }
 
-/* ========== 标签（30mm × 110mm 竖排细长条，实物样式） ========== */
+/* 与独立打印窗口使用同样的 30×110mm 标签布局。 */
 .tags-wrap {
   display: flex; flex-wrap: wrap; gap: 3mm;
   padding: 5mm;
@@ -680,68 +584,26 @@ body {
   max-width: 100%;
 }
 .tag-30-110 {
-  width: 30mm;       /* 3cm 宽 */
-  height: 110mm;     /* 11cm 高 */
+  width: 30mm;
+  height: 110mm;
+  padding: 2mm;
   border: 1px dashed #ccc;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+  flex: none;
   background: #fff;
   overflow: hidden;
-  font-family: "FangSong", "STFangsong", "Microsoft YaHei", sans-serif;
-}
-/* 左栏：约 45% 宽，竖排（从上到下阅读） */
-.tag-left {
-  width: 45%;
-  padding: 2mm 1mm 2mm 2mm;
-  writing-mode: vertical-rl;   /* 竖排：文字从上到下，行从右到左 */
-  -ms-writing-mode: tb-rl;
-  display: flex;
-  flex-direction: column;     /* writing-mode 后 column 实际是行 */
-  justify-content: flex-start;
-  align-items: center;
-  gap: 4mm;
-  font-size: 10px;
-  line-height: 1.3;
   color: #000;
+  font-family: "Microsoft YaHei", Arial, sans-serif;
 }
-/* 右栏：约 55% 宽，竖排 */
-.tag-right {
-  width: 55%;
-  padding: 2mm 2mm 2mm 1mm;
-  writing-mode: vertical-rl;
-  -ms-writing-mode: tb-rl;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 3mm;
-  font-size: 10px;
-  line-height: 1.3;
-  color: #000;
-  border-left: 1px dashed #bbb;
-}
-.tag-line {
-  font-size: 10px;
-  line-height: 1.3;
-  word-break: break-all;
-}
-.tag-bold { font-weight: 700; font-size: 11px; }
-.tag-store {
-  font-weight: 700;
-  letter-spacing: 1px;
-  margin-top: auto;
-  font-size: 10px;
-}
-/* 条码：竖排后的条码图需要旋转，因为条码本身是横向生成的 */
-.tag-barcode {
-  width: auto;
-  height: 28mm;           /* 条码竖起来后的高度（原条码宽） */
-  max-width: 100%;
-  transform: rotate(90deg);  /* 将横向条码旋转90度变成竖向 */
-  display: block;
-  image-rendering: pixelated;
-  object-fit: contain;
-  margin: -6mm 0;           /* 旋转后需要抵消位移 */
-}
-.tag-barcode-text { font-size: 9px; letter-spacing: 0.5px; font-family: Consolas, "Courier New", monospace; }
+.tag-head { height: 8mm; display: flex; align-items: center; justify-content: space-between; gap: 1mm; border-bottom: 1px solid #000; font-size: 10px; }
+.tag-head strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tag-head span { white-space: nowrap; font-weight: 700; }
+.tag-category { height: 10mm; display: flex; align-items: center; font-size: 13px; line-height: 1.2; font-weight: 800; overflow: hidden; }
+.tag-description { height: 10mm; display: flex; flex-direction: column; gap: 1mm; font-size: 10px; line-height: 1.1; overflow: hidden; }
+.tag-description span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tag-scan-zone { position: relative; width: 26mm; height: 60mm; flex: none; overflow: hidden; }
+.tag-barcode { position: absolute; width: 56mm; height: 18mm; max-width: none; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(90deg); display: block; }
+.tag-code { height: 8mm; display: flex; align-items: center; justify-content: center; font: 700 11px Consolas, "Courier New", monospace; white-space: nowrap; }
+.tag-foot { height: 10mm; border-top: 1px solid #000; display: flex; flex-direction: column; justify-content: center; gap: 1mm; font-size: 9px; line-height: 1.1; white-space: nowrap; }
 </style>
