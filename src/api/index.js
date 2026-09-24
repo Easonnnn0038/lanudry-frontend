@@ -105,7 +105,9 @@ export const maintenanceApi = {
   events: (params) => request.get('/maintenance/events', { params }),
   updateEvent: (id, status, note) => request.post(`/maintenance/events/${id}/status`, { status, note }),
   audit: (params) => request.get('/maintenance/audit', { params }),
-  exportEvents: (params) => request.get('/maintenance/events/export', { params, responseType: 'blob' })
+  exportEvents: (params) => request.get('/maintenance/events/export', { params, responseType: 'blob' }),
+  messages: (status) => request.get('/maintenance/mq/outbox', { params: { status: status || undefined } }),
+  retryMessage: (id) => request.post(`/maintenance/mq/outbox/${id}/retry`)
 }
 
 export const shelfApi = {

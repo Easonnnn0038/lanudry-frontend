@@ -1,11 +1,22 @@
 /**
  * 通用工具类
  */
+import { reactive } from 'vue'
 
 // 后端服务地址，与 request.js 的 baseURL 保持一致（去掉末尾的 /api）
 // IDEA 本地开发默认 http://localhost:8080，打包上线时可根据部署环境调整
 const BACKEND_BASE_URL =
   (import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
+
+const photoCache = reactive({})
+const photoLoading = new Set()
+
+function photoFilename(photo) {
+  if (typeof photo === 'object' && photo?.filename) return photo.filename
+  const raw = typeof photo === 'string' ? photo : (photo?.url || photo?.thumbnail || '')
+  const match = raw.match(/(?:\/photos\/|\/api\/photo\/file\/)(\d{8}\/[a-f0-9]{32}\.(?:jpg|png))(?:$|\?)/i)
+  return match?.[1] || ''
+}
 
 /**
  * 拼接照片完整访问 URL
@@ -15,12 +26,26 @@ const BACKEND_BASE_URL =
  */
 export function photoUrl(photo) {
   if (!photo) return ''
-  let raw = typeof photo === 'string' ? photo : (photo.url || photo.thumbnail || '')
-  if (!raw) return ''
-  if (/^https?:\/\//i.test(raw)) return raw
-  // 例如 /photos/20260812/xxx.png → http://localhost:8080/photos/...
-  if (raw.startsWith('/')) return BACKEND_BASE_URL + raw
-  return BACKEND_BASE_URL + '/' + raw
+  if (typeof photo === 'object' && photo.localUrl) return photo.localUrl
+  const filename = photoFilename(photo)
+  if (!filename) return ''
+  if (photoCache[filename]) return photoCache[filename]
+  if (!photoLoading.has(filename)) {
+    photoLoading.add(filename)
+    const token = localStorage.getItem('token')
+    const path = filename.split('/').map(encodeURIComponent).join('/')
+    fetch(`${BACKEND_BASE_URL}/api/photo/file/${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+      .then(response => {
+        if (!response.ok) throw new Error(`照片加载失败 (${response.status})`)
+        return response.blob()
+      })
+      .then(blob => { photoCache[filename] = URL.createObjectURL(blob) })
+      .catch(() => { photoCache[filename] = '' })
+      .finally(() => photoLoading.delete(filename))
+  }
+  return ''
 }
 
 /**

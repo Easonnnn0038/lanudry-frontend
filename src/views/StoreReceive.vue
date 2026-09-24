@@ -272,6 +272,7 @@
                 <el-input-number
                   v-model="row.unitPrice"
                   :min="0" :precision="2" :step="1"
+                  :disabled="!authStore.isAdmin"
                   size="default" controls-position="right"
                   @change="recalc"
                 />
@@ -302,6 +303,14 @@
               </template>
             </el-table-column>
           </el-table>
+          <el-input
+            v-if="hasPriceOverride"
+            v-model="form.priceOverrideReason"
+            maxlength="200"
+            show-word-limit
+            placeholder="管理员改价原因（必填）"
+            style="margin-top: 12px"
+          />
           <el-empty v-if="!form.items.length" description="请从上方类别中点击添加衣物，将弹出颜色/品牌/尺码填写窗口" :image-size="80" />
         </div>
       </div>
@@ -694,8 +703,11 @@ import {
   Picture, Close, ZoomIn, VideoCamera, ArrowRight
 } from '@element-plus/icons-vue'
 import { categoryApi, customerApi, memberCardApi, orderApi, photoApi } from '@/api'
+import { useAuthStore } from '@/stores/auth'
 import { photoUrl as resolvePhotoUrl } from '@/utils'
 import ReceiptPreview from './components/ReceiptPreview.vue'
+
+const authStore = useAuthStore()
 
 // ============= 常量/枚举 =============
 const GROUPS = [
@@ -739,6 +751,8 @@ const submitting = ref(false)
 const createCardVisible = ref(false)
 const createCardFormRef = ref(null)
 const creatingCard = ref(false)
+const receiveRequestId = ref('')
+const createCardRequestId = ref('')
 const createCardForm = reactive({
   customerId: null, customerName: '', phone: '',
   cardTypeId: null, paymentMethod: 'CASH', remark: ''
@@ -786,9 +800,12 @@ const form = reactive({
   defectPhotos: [],
   paymentMethod: 'CASH', extraMethod: 'CASH', useCardPay: true,
   totalPaid: 0,
+  priceOverrideReason: '',
   remark: '',
   items: []
 })
+const hasPriceOverride = computed(() => form.items.some(item =>
+  Number(item.unitPrice).toFixed(2) !== Number(item.catalogPrice).toFixed(2)))
 
 // 打印预览
 const previewVisible = ref(false)
@@ -1013,12 +1030,17 @@ async function doCreateCard() {
         custForm.remark = saved.remark || ''
       }
       const card = await memberCardApi.create({
+        requestId: createCardRequestId.value || (createCardRequestId.value = crypto.randomUUID()),
         customerId: custForm.customerId,
+        customerName: custForm.name,
+        customerPhone: custForm.phone,
+        customerAddress: custForm.address || '',
         cardTypeId: createCardForm.cardTypeId,
         paymentMethod: createCardForm.paymentMethod,
         remark: createCardForm.remark
       })
       currentCard.value = card
+      createCardRequestId.value = ''
       form.memberCardId = card.id
       form.useCardPay = true
       createCardVisible.value = false
@@ -1086,7 +1108,7 @@ function confirmItemDetail() {
       categoryId: c.id,
       categoryGroup: c.categoryGroup,
       categoryName: itemDetail.categoryName,
-      quantity, unitPrice, memberPrice, subtotal,
+      quantity, unitPrice, catalogPrice: unitPrice, memberPrice, subtotal,
       color: itemDetail.color,
       brand: itemDetail.brand,
       size: itemDetail.size,
@@ -1410,6 +1432,9 @@ function onStepClick(i) {
 function validateSubmit() {
   const err = stepValidate(currentStep.value)
   if (err) return err
+  if (hasPriceOverride.value && !form.priceOverrideReason.trim()) {
+    return '管理员修改目录价格时必须填写原因'
+  }
   if (form.paymentMethod === 'MIXED' && !form.extraMethod) {
     return '请选择组合支付的补差方式'
   }
@@ -1435,6 +1460,7 @@ async function submitOrder() {
     // 如果有卡但不使用卡扣款，memberCardId 设为 null，后端走普通支付
     const useCardForPay = canUseCard.value && form.useCardPay
     const payload = {
+      requestId: receiveRequestId.value || (receiveRequestId.value = crypto.randomUUID()),
       customerName: custForm.name.trim(),
       customerPhone: custForm.phone.trim(),
       customerAddress: custForm.address || '',
@@ -1455,6 +1481,7 @@ async function submitOrder() {
         ? (form.extraMethod || 'CASH')
         : null,
       totalPaid: round2(form.totalPaid || 0),
+      priceOverrideReason: hasPriceOverride.value ? form.priceOverrideReason.trim() : null,
       remark: form.remark || '',
       defectPhotos: form.defectPhotos.map(p => ({
         id: p.id,
@@ -1476,6 +1503,7 @@ async function submitOrder() {
       }))
     }
     const resp = await orderApi.receive(payload)
+    receiveRequestId.value = ''
     previewData.value = resp
     previewVisible.value = true
     ElMessage.success('收衣成功！订单号 ' + resp.orderNo)
@@ -1506,8 +1534,11 @@ function resetAll() {
   form.paymentMethod = 'CASH'
   form.extraMethod = 'CASH'
   form.totalPaid = 0
+  form.priceOverrideReason = ''
   form.remark = ''
   form.items.splice(0)
+  receiveRequestId.value = ''
+  createCardRequestId.value = ''
   totalPaidManually.value = false
   currentStep.value = 0
   maxReachedStep.value = 0

@@ -10,6 +10,12 @@
       </el-tab-pane>
       <el-tab-pane label="系统错误" name="system"><EventTable category="SYSTEM_ERROR" :rows="events" :loading="loading" @filter="loadEvents" @update="updateEvent" @export="exportEvents"/></el-tab-pane>
       <el-tab-pane label="业务异常" name="business"><EventTable category="BUSINESS_EXCEPTION,CLIENT_ERROR" :rows="events" :loading="loading" @filter="loadEvents" @update="updateEvent" @export="exportEvents"/></el-tab-pane>
+      <el-tab-pane label="消息任务" name="messages">
+        <div class="filters"><el-select v-model="messageStatus" placeholder="投递状态" clearable style="width:150px"><el-option v-for="(label,value) in messageStatusNames" :key="value" :label="label" :value="value"/></el-select><el-button type="primary" @click="loadMessages">查询</el-button></div>
+        <el-table :data="messages" border stripe v-loading="loading" empty-text="暂无消息任务">
+          <el-table-column prop="createTime" label="创建时间" min-width="165"/><el-table-column prop="aggregateId" label="订单号" min-width="170"/><el-table-column label="投递" width="100"><template #default="{row}"><el-tag :type="messageTag(row.status)">{{ messageStatusNames[row.status]||row.status }}</el-tag></template></el-table-column><el-table-column label="消费" width="100"><template #default="{row}"><el-tag :type="messageTag(row.consumeStatus)">{{ consumeStatusNames[row.consumeStatus]||'待消费' }}</el-tag></template></el-table-column><el-table-column prop="attemptCount" label="投递次数" width="90"/><el-table-column label="错误信息" min-width="230" show-overflow-tooltip><template #default="{row}">{{ row.consumeError||row.lastError||'—' }}</template></el-table-column><el-table-column label="操作" width="100"><template #default="{row}"><el-button v-if="row.status==='DEAD'||row.consumeStatus==='DEAD'" link type="primary" @click="retryMessage(row)">重新投递</el-button><span v-else class="muted">—</span></template></el-table-column>
+        </el-table>
+      </el-tab-pane>
       <el-tab-pane label="操作记录" name="audit">
         <div class="filters"><el-input v-model.trim="auditFilter.keyword" placeholder="订单号或操作员" clearable/><el-date-picker v-model="auditFilter.range" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期"/><el-button type="primary" @click="loadAudit">查询</el-button></div>
         <el-table :data="audits" border stripe v-loading="loading" empty-text="暂无操作记录"><el-table-column prop="operateTime" label="时间" min-width="165"/><el-table-column prop="orderNo" label="订单号" min-width="165"/><el-table-column prop="operatorName" label="操作员" width="110"/><el-table-column label="操作类型" width="120"><template #default="{row}">{{ operateName(row.operateType) }}</template></el-table-column><el-table-column prop="description" label="操作内容" min-width="260" show-overflow-tooltip/><el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip/></el-table>
@@ -22,9 +28,12 @@ import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue'
 import { ElButton, ElDatePicker, ElDialog, ElInput, ElMessage, ElOption, ElSelect, ElTable, ElTableColumn, ElTag } from 'element-plus'
 import { maintenanceApi } from '@/api'
 
-const tab=ref('status'),health=ref(null),events=ref([]),audits=ref([]),loading=ref(false),lastEventFilter=ref({})
+const tab=ref('status'),health=ref(null),events=ref([]),audits=ref([]),messages=ref([]),messageStatus=ref(''),loading=ref(false),lastEventFilter=ref({})
 const auditFilter=reactive({keyword:'',range:[]})
-const services=computed(()=>health.value?[health.value.backend,health.value.database,health.value.factory,health.value.rabbitmq,health.value.redis]:[])
+const services=computed(()=>health.value?[health.value.backend,health.value.database,health.value.factory,health.value.rabbitmq,health.value.redis].filter(Boolean):[])
+const messageStatusNames={PENDING:'待投递',PUBLISHING:'投递中',RETRY:'等待重试',SENT:'已投递',DEAD:'投递失败'}
+const consumeStatusNames={PROCESSING:'处理中',SUCCESS:'成功',DEAD:'消费失败'}
+const messageTag=s=>({SENT:'success',SUCCESS:'success',PENDING:'info',PUBLISHING:'warning',PROCESSING:'warning',RETRY:'warning',DEAD:'danger'}[s]||'info')
 const stateName=s=>({OK:'正常',ERROR:'异常',UNCONFIGURED:'未配置'})[s]||s
 const time=v=>v?String(v).replace('T',' ').slice(0,19):'—'
 const uptime=s=>{const n=Number(s||0);return `${Math.floor(n/86400)}天 ${Math.floor(n%86400/3600)}小时 ${Math.floor(n%3600/60)}分钟`}
@@ -32,7 +41,9 @@ const operateName=s=>({RECEIVE:'收衣',SEND:'送厂',BACK:'回店',NOTIFY:'通�
 async function loadStatus(){health.value=await maintenanceApi.status()}
 async function loadEvents(filter={}){lastEventFilter.value=filter;const categories=tab.value==='system'?['SYSTEM_ERROR']:['BUSINESS_EXCEPTION','CLIENT_ERROR'];const all=await Promise.all(categories.map(category=>maintenanceApi.events({...filter,category})));events.value=all.flat().sort((a,b)=>String(b.lastTime).localeCompare(String(a.lastTime)))}
 async function loadAudit(){const [from,to]=auditFilter.range||[];audits.value=await maintenanceApi.audit({keyword:auditFilter.keyword||undefined,from,to})}
-async function refresh(){loading.value=true;try{if(tab.value==='status')await loadStatus();else if(tab.value==='audit')await loadAudit();else await loadEvents(lastEventFilter.value)}finally{loading.value=false}}
+async function loadMessages(){messages.value=await maintenanceApi.messages(messageStatus.value)}
+async function refresh(){loading.value=true;try{if(tab.value==='status')await loadStatus();else if(tab.value==='audit')await loadAudit();else if(tab.value==='messages')await loadMessages();else await loadEvents(lastEventFilter.value)}finally{loading.value=false}}
+async function retryMessage(row){await maintenanceApi.retryMessage(row.id);ElMessage.success('消息已进入重试队列');await loadMessages()}
 async function updateEvent(id,status,note){await maintenanceApi.updateEvent(id,status,note);ElMessage.success('处理状态已更新');await loadEvents(lastEventFilter.value)}
 async function exportEvents(filter){const category=tab.value==='system'?'SYSTEM_ERROR':undefined;const response=await maintenanceApi.exportEvents({...filter,category});const url=URL.createObjectURL(response.data);const link=document.createElement('a');link.href=url;link.download=`维护日志-${new Date().toISOString().slice(0,10)}.csv`;link.click();URL.revokeObjectURL(url)}
 
