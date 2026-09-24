@@ -52,14 +52,14 @@ export const factoryDispatchApi = {
   createBatch: (data) => request.post('/factory-dispatch/create', data)
 }
 
-/** 回店批次与大件逐件签收 */
+/** 回店批次按订单逐件签收 */
 export const storeReturnApi = {
   batches: () => request.get('/store-return/batches'),
   batch: (id) => request.get(`/store-return/batches/${id}`),
-  packageDetail: (id, packageNo) => request.get(`/store-return/batches/${id}/packages/${encodeURIComponent(packageNo)}`),
-  scan: (id, packageNo, barcode) => request.post(`/store-return/batches/${id}/scan`, { packageNo, barcode }),
-  confirm: (id, packageNo) => request.post(`/store-return/batches/${id}/confirm`, { packageNo }),
-  reportException: (id, packageNo, reason) => request.post(`/store-return/batches/${id}/exception`, { packageNo, reason })
+  orderDetail: (id, orderNo) => request.get(`/store-return/batches/${id}/orders/${encodeURIComponent(orderNo)}`),
+  scan: (id, orderNo, barcode) => request.post(`/store-return/batches/${id}/orders/${encodeURIComponent(orderNo)}/scan`, { barcode }),
+  confirm: (id, orderNo) => request.post(`/store-return/batches/${id}/orders/${encodeURIComponent(orderNo)}/confirm`),
+  reportException: (id, orderNo, reason) => request.post(`/store-return/batches/${id}/orders/${encodeURIComponent(orderNo)}/exception`, { reason })
 }
 
 /** 取衣码 + 手机号核验、整单逐件交付 */

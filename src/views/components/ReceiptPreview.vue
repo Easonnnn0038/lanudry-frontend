@@ -121,7 +121,7 @@
 
           <div v-if="data?.usedMemberCard" class="card-line">
             卡：{{ data.cardNo }}（{{ data.cardTypeName }}）
-            余额 ¥{{ fmt(data.cardBalanceAfter) }}
+            <template v-if="data.cardBalanceAfter != null">余额 ¥{{ fmt(data.cardBalanceAfter) }}</template>
           </div>
         </div>
 
@@ -173,8 +173,8 @@
     </div>
 
     <template #footer>
-      <el-button @click="$emit('reset'); onVisible(false)">
-        完成，开启新单
+      <el-button @click="closePreview">
+        {{ readOnly ? '关闭' : '完成，开启新单' }}
       </el-button>
       <el-button :icon="Printer" @click="doPrint('receipt')">打印凭证</el-button>
       <el-button type="primary" :icon="Printer" @click="doPrint('tags')">打印标签</el-button>
@@ -189,11 +189,16 @@ import { Tickets, Collection, Document, Printer } from '@element-plus/icons-vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  data: { type: Object, default: null }
+  data: { type: Object, default: null },
+  readOnly: { type: Boolean, default: false }
 })
 const emit = defineEmits(['update:modelValue', 'reset'])
 
 function onVisible(v) { emit('update:modelValue', v) }
+function closePreview() {
+  if (!props.readOnly) emit('reset')
+  onVisible(false)
+}
 
 const viewMode = ref('all') // receipt / tags / all
 const dft = ref(true)       // 小票使用仿宋字体（更接近80mm热敏机默认）

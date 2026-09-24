@@ -13,17 +13,22 @@
       <el-table-column prop="sourceBatchNo" label="送厂批次" min-width="150" />
       <el-table-column prop="shelfCode" label="货架" min-width="100" />
       <el-table-column label="异常" width="75"><template #default="{row}">{{ row.errorBackFlag?'是':'—' }}</template></el-table-column>
+      <el-table-column label="操作" width="110" fixed="right"><template #default="{row}"><el-button link type="primary" :loading="detailLoading && loadingOrderId===row.orderId" @click="openDetail(row)">条码/凭证</el-button></template></el-table-column>
     </el-table>
+    <ReceiptPreview v-model="detailVisible" :data="detail" read-only />
   </div>
 </template>
 <script setup>
 import { ref } from 'vue'
-import { storeOperationsApi } from '@/api'
+import { orderApi, storeOperationsApi } from '@/api'
+import ReceiptPreview from '@/views/components/ReceiptPreview.vue'
 const keyword=ref(''),rows=ref([]),loading=ref(false)
+const detail=ref(null),detailVisible=ref(false),detailLoading=ref(false),loadingOrderId=ref(null)
 const statusNames={RECEIVED:'已收衣',SENT_TO_FACTORY:'已送厂',BACK_TO_STORE:'已回店',NOTIFIED:'已通知取衣',PICKED_UP:'已取衣',CANCELLED:'已取消'}
 const statusLabel=status=>statusNames[status]||status||'未知'
 const processNames={SORT:'分拣',WASH:'洗涤',DRY:'烘干',IRON:'熨烫',QUALITY:'质检',PACK:'打包',RETURN:'待回店发货',DONE:'已完成'}
 const processLabel=process=>processNames[process]||process||'—'
 async function search(){if(keyword.value.length<3)return;loading.value=true;try{rows.value=await storeOperationsApi.clothes(keyword.value)}finally{loading.value=false}}
+async function openDetail(row){detailLoading.value=true;loadingOrderId.value=row.orderId;try{detail.value=await orderApi.stagingDetail(row.orderId);detailVisible.value=true}finally{detailLoading.value=false;loadingOrderId.value=null}}
 </script>
 <style scoped>.page{background:#fff;padding:24px;border-radius:12px}.page h2{margin:0 0 6px}.page p{color:#64748b}.search{display:flex;gap:10px;max-width:550px;margin:20px 0}</style>

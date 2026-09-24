@@ -110,7 +110,9 @@
           <h3 class="detail-heading">衣物明细</h3>
           <el-table :data="detail.items || []" border stripe>
             <el-table-column type="index" label="#" width="50" align="center" />
-            <el-table-column prop="barcode" label="衣物码" min-width="145" />
+            <el-table-column label="衣物条形码" min-width="190">
+              <template #default="{ row }"><div class="detail-barcode"><img v-if="row.barcodeImageBase64" :src="row.barcodeImageBase64" alt="衣物条形码"><span>{{ row.barcode }}</span></div></template>
+            </el-table-column>
             <el-table-column prop="categoryName" label="类别" min-width="130" />
             <el-table-column prop="color" label="颜色" width="80" />
             <el-table-column prop="brand" label="品牌" width="100" />
@@ -131,8 +133,9 @@
           <div v-if="detail.remark" class="order-remark"><b>订单备注：</b>{{ detail.remark }}</div>
         </template>
       </div>
-      <template #footer><el-button @click="detailVisible = false">关闭</el-button></template>
+      <template #footer><el-button :disabled="!detail" @click="printPreviewVisible = true">查看条码和收衣凭证</el-button><el-button @click="detailVisible = false">关闭</el-button></template>
     </el-dialog>
+    <ReceiptPreview v-model="printPreviewVisible" :data="detail" read-only />
   </div>
 </template>
 
@@ -150,6 +153,7 @@ import {
   View
 } from '@element-plus/icons-vue'
 import { orderApi } from '@/api'
+import ReceiptPreview from '@/views/components/ReceiptPreview.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -249,6 +253,7 @@ const recentOrders = ref([])
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detail = ref(null)
+const printPreviewVisible = ref(false)
 
 /** 后端订单状态 → 前端表格样式 class（washing/ready/done） */
 function statusClass(status) {
@@ -655,4 +660,6 @@ export default {
   color: #94a3b8;
   padding: 40px 24px !important;
 }
+.detail-barcode { display: grid; justify-items: center; gap: 2px; font: 12px monospace; }
+.detail-barcode img { width: 150px; height: 36px; object-fit: fill; }
 </style>

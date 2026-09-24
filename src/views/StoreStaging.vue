@@ -148,9 +148,9 @@
           </h4>
           <el-table :data="detail.items" size="default" border stripe class="items-table">
             <el-table-column label="#" type="index" width="50" align="center" />
-            <el-table-column label="条码" width="160">
+            <el-table-column label="衣物条形码" width="210">
               <template #default="{ row }">
-                <span class="barcode">{{ row.barcode }}</span>
+                <div class="detail-barcode"><img v-if="row.barcodeImageBase64" :src="row.barcodeImageBase64" alt="衣物条形码"><span class="barcode">{{ row.barcode }}</span></div>
               </template>
             </el-table-column>
             <el-table-column label="类别" width="140" show-overflow-tooltip>
@@ -211,9 +211,11 @@
       </div>
 
       <template #footer>
+        <el-button :disabled="!detail" @click="printPreviewVisible = true">查看条码和收衣凭证</el-button>
         <el-button @click="detailVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+    <ReceiptPreview v-model="printPreviewVisible" :data="detail" read-only />
   </div>
 </template>
 
@@ -223,6 +225,7 @@ import { Search, Refresh, View, Warning } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { orderApi } from '@/api/index'
 import { photoUrl } from '@/utils'
+import ReceiptPreview from '@/views/components/ReceiptPreview.vue'
 
 // ============= 数据 =============
 const loading = ref(false)
@@ -239,6 +242,7 @@ const filter = reactive({
 // 详情弹窗
 const detailVisible = ref(false)
 const detail = ref(null)
+const printPreviewVisible = ref(false)
 
 // ============= 方法 =============
 async function loadData() {
@@ -516,6 +520,8 @@ onMounted(() => {
   font-weight: 600;
   color: #606266;
 }
+.detail-barcode { display: grid; justify-items: center; gap: 2px; }
+.detail-barcode img { width: 160px; height: 38px; object-fit: fill; }
 
 .card-type-tag {
   color: #909399;

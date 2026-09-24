@@ -5,7 +5,7 @@
       <el-button size="large" :icon="Refresh" @click="loadOrders">刷新</el-button>
     </div>
 
-    <el-alert title="编号关系：送厂批次 PC 包含多个大件 PK；每个大件属于一笔订单，内有逐件衣物码。取衣码要等整单回店后才生成。超过5件的拆包功能待补充。" type="info" :closable="false" show-icon />
+    <el-alert title="送厂批次包含多笔订单；每笔订单贴订单号条码，包内每件衣物保留独立衣物码。取衣码要等整单回店后才生成。" type="info" :closable="false" show-icon />
 
     <el-card class="order-card" shadow="never">
       <el-table ref="tableRef" v-loading="loading" :data="orders" row-key="id" size="large" @selection-change="selected = $event">
@@ -31,10 +31,9 @@
       <el-result icon="success" title="打包送厂成功" :sub-title="`送厂批次：${result?.batchNo || ''}`" />
       <el-table :data="result?.packages || []" border>
         <el-table-column prop="orderNo" label="订单号" />
-        <el-table-column prop="packageNo" label="大件码（PK）" />
         <el-table-column prop="itemCount" label="件数" width="80" />
       </el-table>
-      <template #footer><el-button type="primary" size="large" @click="resultVisible = false; loadOrders()">完成</el-button></template>
+      <template #footer><el-button size="large" @click="printOrderLabels">打印订单包裹标签</el-button><el-button type="primary" size="large" @click="resultVisible = false; loadOrders()">完成</el-button></template>
     </el-dialog>
   </div>
 </template>
@@ -43,7 +42,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { factoryDispatchApi } from '@/api'
+import { factoryDispatchApi, orderApi } from '@/api'
 
 const loading = ref(false); const submitting = ref(false); const orders = ref([]); const selected = ref([])
 const resultVisible = ref(false); const result = ref(null)
@@ -67,6 +66,28 @@ async function submitBatch() {
     resultVisible.value = true
     ElMessage.success('送厂批次创建成功')
   } finally { submitting.value = false }
+}
+
+async function printOrderLabels() {
+  const win = window.open('', '_blank', 'width=720,height=760')
+  if (!win) return ElMessage.error('浏览器阻止了打印窗口，请允许弹窗后重试')
+  try {
+    const labels = await Promise.all((result.value?.packages || []).map(async row => ({
+      ...row, image: await orderApi.barcode(row.orderNo, 520, 120)
+    })))
+    win.document.write(`<!doctype html><html><head><meta charset="UTF-8"><title>订单包裹标签</title><style>
+      @page{size:110mm 30mm;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Arial,"Microsoft YaHei",sans-serif}
+      .label{width:110mm;height:30mm;padding:2.5mm 4mm;page-break-after:always;display:grid;grid-template-columns:1fr 34mm;gap:4mm;align-items:center;overflow:hidden}
+      .label:last-child{page-break-after:auto}.info{display:grid;gap:1.5mm}.batch{font-size:9pt}.order{font-size:15pt;font-weight:700;letter-spacing:.5px}.count{font-size:10pt}
+      img{width:34mm;height:16mm;object-fit:fill}.code{text-align:center;font:700 8pt monospace;margin-top:1mm}@media screen{body{background:#eee}.label{background:#fff;margin:10px auto;border:1px solid #bbb}}
+    </style></head><body>${labels.map(row => `<section class="label"><div class="info"><div class="batch">送厂批次 ${result.value.batchNo}</div><div class="order">订单 ${row.orderNo}</div><div class="count">共 ${row.itemCount} 件衣物</div></div><div><img src="${row.image}" alt="订单号条码"><div class="code">${row.orderNo}</div></div></section>`).join('')}</body></html>`)
+    win.document.close()
+    await Promise.all([...win.document.images].map(img => img.complete ? Promise.resolve() : new Promise(resolve => { img.onload = img.onerror = resolve })))
+    win.focus(); win.print()
+  } catch (error) {
+    win.close()
+    ElMessage.error('订单标签生成失败：' + error.message)
+  }
 }
 
 onMounted(loadOrders)
