@@ -63,12 +63,12 @@ export const storeReturnApi = {
   reportException: (id, orderNo, reason) => request.post(`/store-return/batches/${id}/orders/${encodeURIComponent(orderNo)}/exception`, { reason })
 }
 
-/** 取衣码 + 手机号核验、整单逐件交付 */
+/** 手机号或取衣码查询，支持整单及部分取件 */
 export const pickupApi = {
   prepareLegacy: () => request.post('/pickup/prepare-legacy'),
   ready: () => request.get('/pickup/ready'),
-  lookup: (phone, pickupCode) => request.post('/pickup/lookup', { phone, pickupCode }),
-  close: (phone, pickupCode) => request.post('/pickup/close', { phone, pickupCode })
+  lookup: (identifier) => request.post('/pickup/lookup', { identifier }),
+  close: (identifier, itemIds) => request.post('/pickup/close', { identifier, itemIds })
 }
 
 export const storeOperationsApi = {

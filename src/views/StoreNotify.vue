@@ -11,7 +11,7 @@ import { onMounted,ref,watch } from 'vue'
 import { ElMessage,ElMessageBox } from 'element-plus'
 import { notificationApi } from '@/api'
 const rows=ref([]),records=ref([]),selected=ref([]),channels=ref(['MINIAPP','SMS']),type=ref('PICKUP_READY'),loading=ref(false),sending=ref(false),busy=ref(''),tableRef=ref()
-const statusName=s=>({BACK_TO_STORE:'已回店',NOTIFIED:'已通知',STORE_REWORKING:'店返处理中'})[s]||s
+const statusName=s=>({BACK_TO_STORE:'已回店',NOTIFIED:'已通知',PARTIALLY_PICKED_UP:'部分取件',STORE_REWORKING:'店返处理中'})[s]||s
 const notifyStatus=s=>({SENT:'已发送',FAILED:'失败',PENDING:'待发送',NOT_CONFIGURED:'渠道未配置'})[s]||'未发送'
 async function load(){loading.value=true;try{[rows.value,records.value]=await Promise.all([notificationApi.candidates(),notificationApi.records()])}finally{loading.value=false}}
 const requestId=()=>crypto.randomUUID().replaceAll('-','')

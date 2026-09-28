@@ -2,14 +2,14 @@
   <el-dialog
     :model-value="modelValue"
     @update:model-value="onVisible"
-    title="收衣凭证预览"
+    :title="tagsOnly ? '补打衣物标签' : '收衣凭证预览'"
     width="960px"
     class="receipt-dialog"
     :close-on-click-modal="false"
     top="4vh"
   >
     <div class="preview-toolbar">
-      <div>
+      <div v-if="!tagsOnly">
         <el-radio-group v-model="viewMode">
           <el-radio-button label="receipt">
             <el-icon><Tickets /></el-icon> 收衣凭证（80mm）
@@ -23,7 +23,7 @@
         </el-radio-group>
       </div>
       <div class="tools-right">
-        <el-button :icon="Printer" @click="doPrint('receipt')">打印80mm凭证</el-button>
+        <el-button v-if="!tagsOnly" :icon="Printer" @click="doPrint('receipt')">打印80mm凭证</el-button>
         <el-button :icon="Printer" type="primary" @click="doPrint('tags')">打印30×110mm标签</el-button>
       </div>
     </div>
@@ -130,7 +130,7 @@
         <div class="t-notice">
           <div class="t-center small">◆ 客 户 须 知 ◆</div>
           <ol>
-            <li>取衣时请提供手机号和衣物回店后告知的四位取衣码。</li>
+            <li>取衣时提供完整手机号或衣物回店后告知的四位取衣码即可。</li>
             <li>洗涤以衣物内标签为准，特殊处理请提前说明。</li>
             <li>取衣周期：普通衣物3-5天，特殊衣物7-10天。</li>
             <li>如未收到取衣通知，请致电门店查询。</li>
@@ -176,21 +176,22 @@
       <el-button @click="closePreview">
         {{ readOnly ? '关闭' : '完成，开启新单' }}
       </el-button>
-      <el-button :icon="Printer" @click="doPrint('receipt')">打印凭证</el-button>
+      <el-button v-if="!tagsOnly" :icon="Printer" @click="doPrint('receipt')">打印凭证</el-button>
       <el-button type="primary" :icon="Printer" @click="doPrint('tags')">打印标签</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Tickets, Collection, Document, Printer } from '@element-plus/icons-vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   data: { type: Object, default: null },
-  readOnly: { type: Boolean, default: false }
+  readOnly: { type: Boolean, default: false },
+  tagsOnly: { type: Boolean, default: false }
 })
 const emit = defineEmits(['update:modelValue', 'reset'])
 
@@ -201,6 +202,7 @@ function closePreview() {
 }
 
 const viewMode = ref('all') // receipt / tags / all
+watch(() => props.modelValue, visible => { if (visible && props.tagsOnly) viewMode.value = 'tags' })
 const dft = ref(true)       // 小票使用仿宋字体（更接近80mm热敏机默认）
 // ============= 工具 =============
 function fmt(v) {
@@ -316,7 +318,7 @@ function generatePrintHtml(mode) {
     <div class="t-notice">
       <div class="t-center small">◆ 客 户 须 知 ◆</div>
       <ol>
-        <li>取衣时请提供手机号和衣物回店后告知的四位取衣码。</li>
+        <li>取衣时提供完整手机号或衣物回店后告知的四位取衣码即可。</li>
         <li>洗涤以衣物内标签为准，特殊处理请提前说明。</li>
         <li>取衣周期：普通衣物3-5天，特殊衣物7-10天。</li>
         <li>如未收到取衣通知，请致电门店查询。</li>

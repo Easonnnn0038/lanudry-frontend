@@ -218,8 +218,8 @@ const actions = ref([
   {
     key: 'pickup',
     title: '取衣',
-    desc: '凭手机号＋回店后生成的四位取衣码取衣',
-    btnText: '取衣核销',
+    desc: '手机号或四位取衣码任选一个，支持单独取件',
+    btnText: '快速取衣',
     primary: false,
     icon: Shop,
     bg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
@@ -263,6 +263,7 @@ function statusClass(status) {
       return 'washing'
     case 'BACK_TO_STORE':
     case 'NOTIFIED':
+    case 'PARTIALLY_PICKED_UP':
       return 'ready'
     case 'PICKED_UP':
       return 'done'

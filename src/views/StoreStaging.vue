@@ -14,6 +14,7 @@
             <el-option label="待送厂" value="RECEIVED" />
             <el-option label="运输中" value="SENT_TO_FACTORY" />
             <el-option label="已回店" value="BACK_TO_STORE" />
+            <el-option label="部分取件" value="PARTIALLY_PICKED_UP" />
           </el-select>
         </el-form-item>
         <el-form-item label="货架位置">
@@ -297,6 +298,7 @@ function statusTagType(status) {
     SENT_TO_FACTORY: 'warning',
     BACK_TO_STORE: 'success',
     NOTIFIED: 'warning',
+    PARTIALLY_PICKED_UP: 'warning',
     PICKED_UP: 'success',
   }
   return map[status] || 'info'

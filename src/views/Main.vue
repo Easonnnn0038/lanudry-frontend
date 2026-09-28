@@ -43,7 +43,7 @@
         <MaintenanceCenter v-else-if="activeMenu === 'sys-remote'" />
 
 
-        <!-- 取衣闭单 -->
+        <!-- 快速取衣 -->
         <StoreClose v-else-if="activeMenu === 'store-close'" />
 
         <!-- 其他功能占位 -->

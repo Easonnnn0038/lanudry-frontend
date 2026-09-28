@@ -14,7 +14,7 @@ const allMenus = [
       { index: 'store-load', title: '装车送厂', icon: 'Van' },
       { index: 'store-back', title: '衣物回店', icon: 'RefreshLeft' },
       { index: 'store-notify', title: '取衣通知', icon: 'Bell' },
-      { index: 'store-close', title: '取衣闭单', icon: 'CircleCheck' },
+      { index: 'store-close', title: '快速取衣', icon: 'CircleCheck' },
       { index: 'store-shelf', title: '上架/下架', icon: 'Goods' },
       { index: 'store-query', title: '衣物查询', icon: 'Search' },
       { index: 'store-error', title: '错误回店', icon: 'Warning', roles: ['ADMIN'] },
