@@ -1,5 +1,15 @@
 <template>
   <div class="receive-wrapper">
+    <div class="draft-toolbar">
+      <div>
+        <b>{{ rewashSource ? `${rewashSource.rewashType==='STORE_RETURN'?'店返':'客返'}录入 · 来源订单 ${rewashSource.sourceOrderNo}` : '门店收衣' }}</b>
+        <span>{{ rewashSource ? `返洗原因：${rewashSource.reason}` : '本机自动保存，24小时后标记过期' }}</span>
+      </div>
+      <div class="draft-actions">
+        <el-button v-if="!rewashSource" @click="hangOrder">保存挂单</el-button>
+        <el-button v-if="!rewashSource" type="primary" plain @click="draftDialogVisible = true">挂单记录（{{ drafts.length }}）</el-button>
+      </div>
+    </div>
     <!-- ============= 顶部步骤条 ============= -->
     <div class="steps-bar">
       <el-steps :active="currentStep" align-center finish-status="success" process-status="process">
@@ -182,7 +192,7 @@
       <!-- ===== Step 2: 衣物明细 ===== -->
       <div v-show="currentStep === 2" class="step-panel step-items">
         <!-- 类别选择 -->
-        <div class="card-box category-card">
+        <div v-if="!rewashSource" class="card-box category-card">
           <div class="card-title">
             <el-icon :size="18"><Box /></el-icon>
             <span>衣物类别</span>
@@ -236,6 +246,7 @@
             <el-icon :size="18"><List /></el-icon>
             <span>衣物明细</span>
             <span class="count-badge">共 {{ form.items.length }} 件</span>
+            <el-button v-if="authStore.isAdmin && customCategory" type="primary" plain size="small" @click="onAddCategory(customCategory)">自定义衣物</el-button>
           </div>
 
           <el-table :data="form.items" size="default" border stripe class="items-table">
@@ -272,7 +283,7 @@
                 <el-input-number
                   v-model="row.unitPrice"
                   :min="0" :precision="2" :step="1"
-                  :disabled="!authStore.isAdmin"
+                  :disabled="!!rewashSource || !authStore.isAdmin"
                   size="default" controls-position="right"
                   @change="recalc"
                 />
@@ -303,14 +314,6 @@
               </template>
             </el-table-column>
           </el-table>
-          <el-input
-            v-if="hasPriceOverride"
-            v-model="form.priceOverrideReason"
-            maxlength="200"
-            show-word-limit
-            placeholder="管理员改价原因（必填）"
-            style="margin-top: 12px"
-          />
           <el-empty v-if="!form.items.length" description="请从上方类别中点击添加衣物，将弹出颜色/品牌/尺码填写窗口" :image-size="80" />
         </div>
       </div>
@@ -422,7 +425,8 @@
           </div>
 
           <!-- 加急勾选 -->
-          <div class="urgent-toggle">
+          <el-alert v-if="rewashSource" title="返洗订单默认免费，不扣会员余额、不重复计入营业额。" type="success" :closable="false" show-icon />
+          <div v-else class="urgent-toggle">
             <el-checkbox
               v-model="form.urgentFlag"
               :true-value="1"
@@ -466,7 +470,7 @@
 
           <el-divider />
 
-          <div class="payment-block">
+          <div v-if="!rewashSource" class="payment-block">
             <div class="block-title">支付方式</div>
 
             <!-- 有会员卡：显示"使用会员卡余额支付"开关 -->
@@ -539,7 +543,7 @@
 
           <div class="paid-block">
             <el-form label-width="80px">
-              <el-form-item label="实收金额">
+              <el-form-item v-if="!rewashSource" label="实收金额">
                 <el-input-number
                   v-model="form.totalPaid"
                   :min="0" :precision="2" :step="10"
@@ -567,7 +571,7 @@
     <div class="step-nav">
       <el-button size="large" :icon="RefreshLeft" @click="resetAll">重置</el-button>
       <div class="nav-right">
-        <el-button v-if="currentStep > 0" size="large" @click="prevStep">上一步</el-button>
+        <el-button v-if="currentStep > (rewashSource ? 2 : 0)" size="large" @click="prevStep">上一步</el-button>
         <el-button v-if="currentStep < stepList.length - 1" size="large" type="primary" @click="nextStep">
           下一步 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
         </el-button>
@@ -578,7 +582,7 @@
           :loading="submitting"
           @click="submitOrder"
         >
-          确认收衣
+          {{ rewashSource ? `免费返洗 ${_totals.count} 件` : `收款 ¥${fmt(totals.totalReceivable)} 并完成收衣` }}
         </el-button>
       </div>
     </div>
@@ -588,6 +592,12 @@
       <el-form :model="itemDetail" label-width="80px" size="default">
         <el-form-item label="类别">
           <el-tag size="default">{{ itemDetail.categoryName }}</el-tag>
+        </el-form-item>
+        <el-form-item v-if="itemDetail.categoryGroup === 'CUSTOM'" label="衣物名称" required>
+          <el-input v-model.trim="itemDetail.customName" maxlength="100" placeholder="例如：舞台演出服" />
+        </el-form-item>
+        <el-form-item v-if="itemDetail.categoryGroup === 'CUSTOM'" label="单价" required>
+          <el-input-number v-model="itemDetail.customPrice" :min="0" :precision="2" :step="1" />
         </el-form-item>
         <el-form-item label="颜色" required>
           <div class="color-palette">
@@ -691,6 +701,19 @@
 
     <!-- ========== 打印预览（收衣凭证）========== -->
     <ReceiptPreview v-model="previewVisible" :data="previewData" @reset="resetAll" />
+
+    <el-dialog v-model="draftDialogVisible" title="本机挂单记录" width="720px">
+      <el-empty v-if="!drafts.length" description="暂无挂单" />
+      <div v-else class="draft-list">
+        <div v-for="draft in drafts" :key="draft.id" class="draft-row">
+          <div>
+            <div class="draft-name"><b>{{ draft.customer?.name || '未填写姓名' }}</b><span>{{ draft.customer?.phone || '未填写手机号' }}</span><el-tag v-if="isDraftExpired(draft)" type="danger" size="small">已过期</el-tag></div>
+            <p>{{ draft.form?.items?.length || 0 }} 件衣物 · 保存于 {{ formatDraftTime(draft.updatedAt) }}</p>
+          </div>
+          <div><el-button type="primary" link @click="restoreDraft(draft)">继续录入</el-button><el-button type="danger" link @click="deleteDraft(draft.id)">删除</el-button></div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -708,6 +731,15 @@ import { photoUrl as resolvePhotoUrl } from '@/utils'
 import ReceiptPreview from './components/ReceiptPreview.vue'
 
 const authStore = useAuthStore()
+const DRAFT_TTL = 24 * 60 * 60 * 1000
+const REWASH_PENDING_KEY = 'laundry_rewash_pending_v1'
+const draftStorageKey = `laundry_receive_drafts_v1:${authStore.username || 'local'}`
+const drafts = ref([])
+const draftDialogVisible = ref(false)
+const activeDraftId = ref(crypto.randomUUID())
+const rewashSource = ref(null)
+let draftTimer = null
+let restoringDraft = false
 
 // ============= 常量/枚举 =============
 const GROUPS = [
@@ -770,6 +802,7 @@ const itemDetail = reactive({
   mode: 'add', // add=新增类别时  edit=编辑已有明细
   editId: null, // 编辑时对应 form.items 的 itemTempId
   categoryId: null, categoryGroup: '', categoryName: '',
+  customName: '', customPrice: 0,
   color: '', brand: '', size: '', defect: '', special: '',
   // 新增时暂存的原始类别信息（用于生成明细行）
   _category: null
@@ -826,6 +859,7 @@ const pedalKeyName = ref('F9')
 
 // ============= 分类 =============
 const groups = computed(() => GROUPS)
+const customCategory = computed(() => allCategories.value.find(c => c.categoryGroup === 'CUSTOM'))
 const categoriesByGroup = computed(() => {
   const m = {}
   GROUPS.forEach(g => { m[g.key] = [] })
@@ -1066,6 +1100,8 @@ function onAddCategory(c) {
   itemDetail.categoryName = (c.categoryLevel1 && c.categoryLevel1 !== c.categoryLevel2)
     ? c.categoryLevel1 + '-' + c.categoryLevel2
     : c.categoryLevel2
+  itemDetail.customName = ''
+  itemDetail.customPrice = Number(c.originalPrice || 0)
   itemDetail.color = ''
   itemDetail.brand = ''
   itemDetail.size = ''
@@ -1082,6 +1118,8 @@ function editItem(row) {
   itemDetail.categoryId = row.categoryId
   itemDetail.categoryGroup = row.categoryGroup
   itemDetail.categoryName = row.categoryName
+  itemDetail.customName = row.customName || (row.categoryGroup === 'CUSTOM' ? row.categoryName : '')
+  itemDetail.customPrice = Number(row.unitPrice || 0)
   itemDetail.color = row.color || ''
   itemDetail.brand = row.brand || ''
   itemDetail.size = row.size || ''
@@ -1093,6 +1131,10 @@ function editItem(row) {
 
 /** 确认衣物详情：新增或更新 */
 function confirmItemDetail() {
+  if (itemDetail.categoryGroup === 'CUSTOM' && !itemDetail.customName) {
+    ElMessage.warning('请填写自定义衣物名称')
+    return
+  }
   if (!itemDetail.color) {
     ElMessage.warning('请选择颜色')
     return
@@ -1100,14 +1142,15 @@ function confirmItemDetail() {
   if (itemDetail.mode === 'add') {
     const c = itemDetail._category
     const quantity = 1
-    const unitPrice = c.originalPrice
+    const unitPrice = c.categoryGroup === 'CUSTOM' ? Number(itemDetail.customPrice || 0) : c.originalPrice
     const memberPrice = computeMemberPrice(unitPrice, c)
     const subtotal = +(memberPrice * quantity).toFixed(2)
     form.items.push({
       itemTempId: Date.now() + '-' + Math.random().toString(36).slice(2, 7),
       categoryId: c.id,
       categoryGroup: c.categoryGroup,
-      categoryName: itemDetail.categoryName,
+      categoryName: c.categoryGroup === 'CUSTOM' ? itemDetail.customName : itemDetail.categoryName,
+      customName: c.categoryGroup === 'CUSTOM' ? itemDetail.customName : null,
       quantity, unitPrice, catalogPrice: unitPrice, memberPrice, subtotal,
       color: itemDetail.color,
       brand: itemDetail.brand,
@@ -1119,6 +1162,7 @@ function confirmItemDetail() {
   } else {
     const item = form.items.find(x => x.itemTempId === itemDetail.editId)
     if (item) {
+      if (item.categoryGroup === 'CUSTOM') { item.customName = itemDetail.customName; item.categoryName = itemDetail.customName; item.unitPrice = Number(itemDetail.customPrice || 0); item.catalogPrice = 0 }
       item.color = itemDetail.color
       item.brand = itemDetail.brand
       item.size = itemDetail.size
@@ -1327,6 +1371,10 @@ function recalc() {
   allCategories.value.forEach(c => { catMap[c.id] = c })
   let totalAmount = 0, actualAmount = 0, count = 0
   form.items.forEach(it => {
+    if (rewashSource.value) {
+      it.unitPrice = 0
+      it.catalogPrice = 0
+    }
     it.memberPrice = computeMemberPrice(it.unitPrice, catMap[it.categoryId])
     it.subtotal = round2(it.memberPrice * it.quantity)
     totalAmount = round2(totalAmount + it.unitPrice * it.quantity)
@@ -1418,11 +1466,13 @@ function nextStep() {
 }
 
 function prevStep() {
-  if (currentStep.value > 0) currentStep.value--
+  const minimum = rewashSource.value ? 2 : 0
+  if (currentStep.value > minimum) currentStep.value--
 }
 
 /** 点击步骤条：只能回退到已达到的步骤 */
 function onStepClick(i) {
+  if (rewashSource.value && i < 2) return
   if (i <= maxReachedStep.value) {
     currentStep.value = i
   }
@@ -1432,8 +1482,8 @@ function onStepClick(i) {
 function validateSubmit() {
   const err = stepValidate(currentStep.value)
   if (err) return err
-  if (hasPriceOverride.value && !form.priceOverrideReason.trim()) {
-    return '管理员修改目录价格时必须填写原因'
+  if (rewashSource.value && (!rewashSource.value.reason || form.items.some(item => !item.sourceOrderItemId))) {
+    return '返洗来源或返洗原因不完整，请重新从衣物查询发起'
   }
   if (form.paymentMethod === 'MIXED' && !form.extraMethod) {
     return '请选择组合支付的补差方式'
@@ -1447,13 +1497,6 @@ async function submitOrder() {
     ElMessage.warning(err)
     return
   }
-  try {
-    await ElMessageBox.confirm(
-      `确认收衣？应收 ¥${fmt(_totals.totalReceivable)}，实收 ¥${fmt(form.totalPaid)}，共 ${_totals.count} 件`,
-      '提交确认', { type: 'warning', confirmButtonText: '确认收衣', cancelButtonText: '再看看' }
-    )
-  } catch { return }
-
   submitting.value = true
   try {
     // 关键：只有使用卡扣款时才传 memberCardId
@@ -1461,6 +1504,10 @@ async function submitOrder() {
     const useCardForPay = canUseCard.value && form.useCardPay
     const payload = {
       requestId: receiveRequestId.value || (receiveRequestId.value = crypto.randomUUID()),
+      sourceOrderId: rewashSource.value?.sourceOrderId || null,
+      rewashType: rewashSource.value?.rewashType || null,
+      rewashReason: rewashSource.value?.reason || null,
+      customerId: custForm.customerId || null,
       customerName: custForm.name.trim(),
       customerPhone: custForm.phone.trim(),
       customerAddress: custForm.address || '',
@@ -1481,7 +1528,7 @@ async function submitOrder() {
         ? (form.extraMethod || 'CASH')
         : null,
       totalPaid: round2(form.totalPaid || 0),
-      priceOverrideReason: hasPriceOverride.value ? form.priceOverrideReason.trim() : null,
+      priceOverrideReason: null,
       remark: form.remark || '',
       defectPhotos: form.defectPhotos.map(p => ({
         id: p.id,
@@ -1492,6 +1539,7 @@ async function submitOrder() {
         defectRemark: p.defectRemark || ''
       })),
       items: form.items.map(it => ({
+        sourceOrderItemId: it.sourceOrderItemId || null,
         categoryId: it.categoryId,
         quantity: it.quantity || 1,
         unitPrice: round2(it.unitPrice),
@@ -1503,17 +1551,19 @@ async function submitOrder() {
       }))
     }
     const resp = await orderApi.receive(payload)
-    receiveRequestId.value = ''
+    removeDraft(activeDraftId.value)
+    localStorage.removeItem(REWASH_PENDING_KEY)
     previewData.value = resp
     previewVisible.value = true
-    ElMessage.success('收衣成功！订单号 ' + resp.orderNo)
+    ElMessage.success(`${rewashSource.value ? '返洗录入' : '收衣'}成功！订单号 ${resp.orderNo}`)
   } finally {
     submitting.value = false
   }
 }
 
 // ============= 重置 =============
-function resetAll() {
+function resetAll(clearDraft = true) {
+  if (clearDraft) removeDraft(activeDraftId.value)
   custForm.phone = ''
   custForm.name = ''
   custForm.address = ''
@@ -1545,6 +1595,123 @@ function resetAll() {
   recalc()
   activeGroup.value = 'CLOTHES'
   kw.value = ''
+  rewashSource.value = null
+  activeDraftId.value = crypto.randomUUID()
+}
+
+// ============= Windows 桌面端本机挂单 =============
+function readDrafts() {
+  try {
+    const value = JSON.parse(localStorage.getItem(draftStorageKey) || '[]')
+    return Array.isArray(value) ? value.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)) : []
+  } catch { return [] }
+}
+
+function writeDrafts(value) {
+  drafts.value = value.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+  try {
+    localStorage.setItem(draftStorageKey, JSON.stringify(drafts.value))
+    return true
+  } catch {
+    ElMessage.error('本机挂单保存失败，请立即完成收衣或联系管理员清理应用存储')
+    return false
+  }
+}
+
+function hasDraftContent() {
+  return !!(custForm.phone || custForm.name || form.items.length || form.defectPhotos.length || form.remark)
+}
+
+function persistCurrent() {
+  if (restoringDraft || rewashSource.value || !hasDraftContent()) return false
+  const now = Date.now()
+  const previous = readDrafts().find(draft => draft.id === activeDraftId.value)
+  const draft = {
+    id: activeDraftId.value,
+    createdAt: previous?.createdAt || now,
+    updatedAt: now,
+    customer: JSON.parse(JSON.stringify(custForm)),
+    form: JSON.parse(JSON.stringify(form)),
+    customerDetail: customerDetail.value ? JSON.parse(JSON.stringify(customerDetail.value)) : null,
+    currentCard: currentCard.value ? JSON.parse(JSON.stringify(currentCard.value)) : null,
+    isNewCustomer: isNewCustomer.value,
+    currentStep: currentStep.value,
+    maxReachedStep: maxReachedStep.value
+  }
+  return writeDrafts([draft, ...readDrafts().filter(item => item.id !== draft.id)])
+}
+
+function removeDraft(id) {
+  if (!id) return
+  writeDrafts(readDrafts().filter(draft => draft.id !== id))
+}
+
+function hangOrder() {
+  if (!persistCurrent()) return ElMessage.warning('请先填写客户或衣物信息')
+  ElMessage.success('挂单已保存在这台电脑上')
+  activeDraftId.value = crypto.randomUUID()
+  resetAll(false)
+}
+
+function restoreDraft(draft, silent = false) {
+  restoringDraft = true
+  resetAll(false)
+  activeDraftId.value = draft.id
+  Object.assign(custForm, draft.customer || {})
+  Object.assign(form, draft.form || {})
+  form.items = Array.isArray(draft.form?.items) ? draft.form.items : []
+  form.defectPhotos = Array.isArray(draft.form?.defectPhotos) ? draft.form.defectPhotos : []
+  customerDetail.value = draft.customerDetail || null
+  currentCard.value = draft.currentCard || null
+  isNewCustomer.value = !!draft.isNewCustomer
+  currentStep.value = Number(draft.currentStep || 0)
+  maxReachedStep.value = Number(draft.maxReachedStep || 0)
+  draftDialogVisible.value = false
+  recalc()
+  restoringDraft = false
+  if (!silent) ElMessage.success(isDraftExpired(draft) ? '已恢复过期挂单，请重新核对信息' : '已恢复挂单')
+}
+
+async function deleteDraft(id) {
+  const draft = readDrafts().find(item => item.id === id)
+  removeDraft(id)
+  if (id === activeDraftId.value) resetAll(false)
+  for (const photo of draft?.form?.defectPhotos || []) {
+    if (photo?.filename) photoApi.delete(photo.filename).catch(() => {})
+  }
+  ElMessage.success('挂单已删除')
+}
+
+function isDraftExpired(draft) { return Date.now() - Number(draft.updatedAt || 0) >= DRAFT_TTL }
+function formatDraftTime(value) { return value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—' }
+
+function applyPendingRewash() {
+  try {
+    const pending = JSON.parse(localStorage.getItem(REWASH_PENDING_KEY) || 'null')
+    if (!pending?.sourceOrderId || !Array.isArray(pending.items)) return false
+    restoringDraft = true
+    resetAll(false)
+    rewashSource.value = pending
+    Object.assign(custForm, {
+      customerId: null,
+      name: pending.customer?.name || '',
+      phone: pending.customer?.phone || '',
+      address: pending.customer?.address || '',
+      remark: ''
+    })
+    form.items = pending.items.map(item => ({ ...item, itemTempId: crypto.randomUUID() }))
+    form.paymentMethod = 'CASH'
+    form.extraMethod = 'CASH'
+    form.totalPaid = 0
+    currentStep.value = 2
+    maxReachedStep.value = 4
+    recalc()
+    restoringDraft = false
+    return true
+  } catch {
+    localStorage.removeItem(REWASH_PENDING_KEY)
+    return false
+  }
 }
 
 // ============= 工具 =============
@@ -1560,17 +1727,30 @@ onMounted(async () => {
   try {
     allCategories.value = await categoryApi.list() || []
     await loadCardTypes()
-    recalc()
+    drafts.value = readDrafts()
+    if (!applyPendingRewash()) {
+      const recent = drafts.value.find(draft => !isDraftExpired(draft))
+      if (recent) {
+        restoreDraft(recent, true)
+        ElMessage.info('已恢复本机未完成的收衣挂单')
+      } else recalc()
+    }
   } catch (e) {
     console.error(e)
     ElMessage.warning('加载类别/卡类型失败，请检查后端')
   }
 })
 onUnmounted(() => {
+  if (draftTimer) clearTimeout(draftTimer)
+  persistCurrent()
   window.removeEventListener('keydown', onPedalKeyDown)
 })
 
 watch(() => form.totalPaid, recalc)
+watch([custForm, form, currentStep, maxReachedStep], () => {
+  if (draftTimer) clearTimeout(draftTimer)
+  draftTimer = setTimeout(persistCurrent, 400)
+}, { deep: true })
 </script>
 
 <style scoped>
@@ -1582,6 +1762,26 @@ watch(() => form.totalPaid, recalc)
   padding: 12px;
   overflow: hidden;
 }
+.draft-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  background: #fff;
+  border: 1px solid #dfe6ee;
+  border-radius: 12px;
+}
+.draft-toolbar b { display: block; color: #1f2d3d; }
+.draft-toolbar span { display: block; margin-top: 3px; color: #526579; font-size: 13px; }
+.draft-actions { display: flex; gap: 8px; flex: none; }
+.draft-list { display: grid; gap: 10px; }
+.draft-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid #dfe6ee; border-radius: 12px; }
+.draft-name { display: flex; align-items: center; gap: 10px; }
+.draft-name span { color: #526579; font-variant-numeric: tabular-nums; }
+.draft-row p { margin: 6px 0 0; color: #607286; font-size: 13px; }
+@media (max-width: 760px) { .draft-toolbar, .draft-row { align-items: stretch; flex-direction: column; } .draft-actions { width: 100%; } }
 
 /* 步骤条 */
 .steps-bar {

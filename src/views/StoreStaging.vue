@@ -298,7 +298,6 @@ function statusTagType(status) {
     BACK_TO_STORE: 'success',
     NOTIFIED: 'warning',
     PICKED_UP: 'success',
-    CANCELLED: 'danger'
   }
   return map[status] || 'info'
 }

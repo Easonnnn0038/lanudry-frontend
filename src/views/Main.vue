@@ -34,11 +34,11 @@
 
         <StoreSupplement v-else-if="activeMenu === 'store-extra'" />
 
+        <CategoryManage v-else-if="activeMenu === 'category-manage'" />
+
         <StoreShelf v-else-if="activeMenu === 'store-shelf'" />
 
         <StoreStats v-else-if="activeMenu === 'stat-business' || activeMenu === 'stat-finance'" :mode="activeMenu" />
-
-        <OrderCancel v-else-if="activeMenu === 'sys-delete'" />
 
         <MaintenanceCenter v-else-if="activeMenu === 'sys-remote'" />
 
@@ -84,7 +84,6 @@ import {
   Plus,
   TrendCharts,
   Money,
-  Delete,
   Monitor
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
@@ -99,9 +98,9 @@ import StoreNotify from '@/views/StoreNotify.vue'
 import StoreQuery from '@/views/StoreQuery.vue'
 import StoreError from '@/views/StoreError.vue'
 import StoreSupplement from '@/views/StoreSupplement.vue'
+import CategoryManage from '@/views/CategoryManage.vue'
 import StoreShelf from '@/views/StoreShelf.vue'
 import StoreStats from '@/views/StoreStats.vue'
-import OrderCancel from '@/views/OrderCancel.vue'
 import MaintenanceCenter from '@/views/MaintenanceCenter.vue'
 import StoreClose from '@/views/StoreClose.vue'
 
@@ -130,7 +129,6 @@ const iconMap = {
   Plus,
   TrendCharts,
   Money,
-  Delete,
   Monitor
 }
 

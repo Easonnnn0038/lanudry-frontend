@@ -1,7 +1,7 @@
 <template>
   <div class="load-page">
     <div class="page-head">
-      <div><h2>装车送厂</h2><p>普通订单至少选择两单，加急订单可以单独送厂</p></div>
+      <div><h2>装车送厂</h2><p>普通和加急订单均可单独送厂，也可以多选组成批次</p></div>
       <el-button size="large" :icon="Refresh" @click="loadOrders">刷新</el-button>
     </div>
 
@@ -55,10 +55,6 @@ async function loadOrders() {
 }
 
 async function submitBatch() {
-  if (selected.value.length === 1 && selected.value[0].urgentFlag !== 1) {
-    ElMessage.warning('普通订单不能单独送厂，请至少选择两个订单')
-    return
-  }
   await ElMessageBox.confirm(`确认将 ${selected.value.length} 个订单、${selectedItems.value} 件衣物打包送厂吗？`, '确认送厂', { type: 'warning' })
   submitting.value = true
   try {
@@ -76,7 +72,7 @@ async function printOrderLabels() {
       ...row, image: await orderApi.barcode(row.orderNo, 520, 120)
     })))
     win.document.write(`<!doctype html><html><head><meta charset="UTF-8"><title>订单包裹标签</title><style>
-      @page{size:110mm 30mm;margin:0}*{box-sizing:border-box}body{margin:0;font-family:Arial,"Microsoft YaHei",sans-serif}
+      @page{size:110mm 30mm;margin:0}*{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",sans-serif}
       .label{width:110mm;height:30mm;padding:2.5mm 4mm;page-break-after:always;display:grid;grid-template-columns:1fr 34mm;gap:4mm;align-items:center;overflow:hidden}
       .label:last-child{page-break-after:auto}.info{display:grid;gap:1.5mm}.batch{font-size:9pt}.order{font-size:15pt;font-weight:700;letter-spacing:.5px}.count{font-size:10pt}
       img{width:34mm;height:16mm;object-fit:fill}.code{text-align:center;font:700 8pt monospace;margin-top:1mm}@media screen{body{background:#eee}.label{background:#fff;margin:10px auto;border:1px solid #bbb}}

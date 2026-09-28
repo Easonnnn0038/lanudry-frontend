@@ -1,6 +1,6 @@
 <template>
   <router-view />
-</template>
+</template>npm
 
 <script setup>
 // 根组件，仅包含路由出口

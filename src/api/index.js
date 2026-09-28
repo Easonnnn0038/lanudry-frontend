@@ -5,7 +5,9 @@ export const categoryApi = {
   /** 全部类别（按分组排序） */
   list: () => request.get('/category/list'),
   /** 模糊搜索类别 */
-  search: (keyword) => request.get('/category/search', { params: { keyword } })
+  search: (keyword) => request.get('/category/search', { params: { keyword } }),
+  adminList: () => request.get('/category/admin-list'),
+  save: (data) => request.post('/category/save', data)
 }
 
 /** 客户相关接口 */
@@ -58,7 +60,6 @@ export const storeReturnApi = {
   batch: (id) => request.get(`/store-return/batches/${id}`),
   orderDetail: (id, orderNo) => request.get(`/store-return/batches/${id}/orders/${encodeURIComponent(orderNo)}`),
   scan: (id, orderNo, barcode) => request.post(`/store-return/batches/${id}/orders/${encodeURIComponent(orderNo)}/scan`, { barcode }),
-  confirm: (id, orderNo) => request.post(`/store-return/batches/${id}/orders/${encodeURIComponent(orderNo)}/confirm`),
   reportException: (id, orderNo, reason) => request.post(`/store-return/batches/${id}/orders/${encodeURIComponent(orderNo)}/exception`, { reason })
 }
 
@@ -67,17 +68,23 @@ export const pickupApi = {
   prepareLegacy: () => request.post('/pickup/prepare-legacy'),
   ready: () => request.get('/pickup/ready'),
   lookup: (phone, pickupCode) => request.post('/pickup/lookup', { phone, pickupCode }),
-  scan: (phone, pickupCode, barcode) => request.post('/pickup/scan', { phone, pickupCode, barcode }),
   close: (phone, pickupCode) => request.post('/pickup/close', { phone, pickupCode })
 }
 
 export const storeOperationsApi = {
   notifications: () => request.get('/store-operations/notifications'),
   notify: (orderNo, channel) => request.post('/store-operations/notifications', { orderNo, channel }),
+  undoNotify: (orderNo) => request.post('/store-operations/notifications/undo', { orderNo }),
   clothes: (keyword) => request.get('/store-operations/clothes', { params: { keyword } }),
   errors: () => request.get('/store-operations/return-errors'),
   createError: (data) => request.post('/store-operations/return-errors', data),
   resolveError: (id, action, note) => request.post(`/store-operations/return-errors/${id}/resolve`, { action, note })
+}
+
+export const notificationApi = {
+  candidates: () => request.get('/notifications/candidates'),
+  records: () => request.get('/notifications/records'),
+  send: (data) => request.post('/notifications/send', data)
 }
 
 export const storeStatisticsApi = {
@@ -90,14 +97,6 @@ export const supplementApi = {
   detail: (orderNo) => request.get(`/supplements/orders/${encodeURIComponent(orderNo)}`),
   create: (data) => request.post('/supplements', data),
   dispatch: (id) => request.post(`/supplements/${id}/dispatch`)
-}
-
-export const orderCancelApi = {
-  eligible: (keyword) => request.get('/order-cancel/eligible', { params: { keyword } }),
-  search: (keyword = '') => request.get('/order-cancel/search', { params: { keyword } }),
-  apply: (orderNo, reason) => request.post('/order-cancel/apply', { orderNo, reason }),
-  review: (id, action, note) => request.post(`/order-cancel/${id}/review`, { action, note }),
-  restore: (id) => request.post(`/order-cancel/${id}/restore`)
 }
 
 export const maintenanceApi = {
