@@ -3,9 +3,11 @@ import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:8080/api')
+
 // 创建 Axios 实例
 const service = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: API_BASE_URL,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json;charset=UTF-8'
@@ -22,7 +24,7 @@ function reportClientError(config, message, status) {
   reported.set(key, now)
   const token = localStorage.getItem('token')
   if (!token) return
-  fetch('http://localhost:8080/api/maintenance/client-error', {
+  fetch(`${API_BASE_URL}/maintenance/client-error`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ module: '门店前端', message: String(message || '请求失败').slice(0, 1000), path, clientVersion: '1.0.0' })
   }).catch(() => {})
@@ -101,7 +103,7 @@ service.interceptors.response.use(
 
     // 网络错误 / 后端没启动
     if (error.message === 'Network Error') {
-      ElMessage.error('网络连接异常，请确认后端服务已启动（http://localhost:8080）')
+      ElMessage.error('网络连接异常，请稍后重试')
       return Promise.reject(error)
     }
 

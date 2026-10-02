@@ -727,7 +727,7 @@ import {
 } from '@element-plus/icons-vue'
 import { categoryApi, customerApi, memberCardApi, orderApi, photoApi } from '@/api'
 import { useAuthStore } from '@/stores/auth'
-import { photoUrl as resolvePhotoUrl } from '@/utils'
+import { localId, photoUrl as resolvePhotoUrl } from '@/utils'
 import ReceiptPreview from './components/ReceiptPreview.vue'
 
 const authStore = useAuthStore()
@@ -736,7 +736,7 @@ const REWASH_PENDING_KEY = 'laundry_rewash_pending_v1'
 const draftStorageKey = `laundry_receive_drafts_v1:${authStore.username || 'local'}`
 const drafts = ref([])
 const draftDialogVisible = ref(false)
-const activeDraftId = ref(crypto.randomUUID())
+const activeDraftId = ref(localId())
 const rewashSource = ref(null)
 let draftTimer = null
 let restoringDraft = false
@@ -1064,7 +1064,7 @@ async function doCreateCard() {
         custForm.remark = saved.remark || ''
       }
       const card = await memberCardApi.create({
-        requestId: createCardRequestId.value || (createCardRequestId.value = crypto.randomUUID()),
+        requestId: createCardRequestId.value || (createCardRequestId.value = localId()),
         customerId: custForm.customerId,
         customerName: custForm.name,
         customerPhone: custForm.phone,
@@ -1503,7 +1503,7 @@ async function submitOrder() {
     // 如果有卡但不使用卡扣款，memberCardId 设为 null，后端走普通支付
     const useCardForPay = canUseCard.value && form.useCardPay
     const payload = {
-      requestId: receiveRequestId.value || (receiveRequestId.value = crypto.randomUUID()),
+      requestId: receiveRequestId.value || (receiveRequestId.value = localId()),
       sourceOrderId: rewashSource.value?.sourceOrderId || null,
       rewashType: rewashSource.value?.rewashType || null,
       rewashReason: rewashSource.value?.reason || null,
@@ -1596,7 +1596,7 @@ function resetAll(clearDraft = true) {
   activeGroup.value = 'CLOTHES'
   kw.value = ''
   rewashSource.value = null
-  activeDraftId.value = crypto.randomUUID()
+  activeDraftId.value = localId()
 }
 
 // ============= Windows 桌面端本机挂单 =============
@@ -1649,7 +1649,7 @@ function removeDraft(id) {
 function hangOrder() {
   if (!persistCurrent()) return ElMessage.warning('请先填写客户或衣物信息')
   ElMessage.success('挂单已保存在这台电脑上')
-  activeDraftId.value = crypto.randomUUID()
+  activeDraftId.value = localId()
   resetAll(false)
 }
 
@@ -1699,7 +1699,7 @@ function applyPendingRewash() {
       address: pending.customer?.address || '',
       remark: ''
     })
-    form.items = pending.items.map(item => ({ ...item, itemTempId: crypto.randomUUID() }))
+    form.items = pending.items.map(item => ({ ...item, itemTempId: localId() }))
     form.paymentMethod = 'CASH'
     form.extraMethod = 'CASH'
     form.totalPaid = 0

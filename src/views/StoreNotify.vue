@@ -10,11 +10,12 @@
 import { onMounted,ref,watch } from 'vue'
 import { ElMessage,ElMessageBox } from 'element-plus'
 import { notificationApi } from '@/api'
+import { localId } from '@/utils'
 const rows=ref([]),records=ref([]),selected=ref([]),channels=ref(['MINIAPP','SMS']),type=ref('PICKUP_READY'),loading=ref(false),sending=ref(false),busy=ref(''),tableRef=ref()
 const statusName=s=>({BACK_TO_STORE:'已回店',NOTIFIED:'已通知',PARTIALLY_PICKED_UP:'部分取件',STORE_REWORKING:'店返处理中'})[s]||s
 const notifyStatus=s=>({SENT:'已发送',FAILED:'失败',PENDING:'待发送',NOT_CONFIGURED:'渠道未配置'})[s]||'未发送'
 async function load(){loading.value=true;try{[rows.value,records.value]=await Promise.all([notificationApi.candidates(),notificationApi.records()])}finally{loading.value=false}}
-const requestId=()=>crypto.randomUUID().replaceAll('-','')
+const requestId=()=>localId().replaceAll('-','')
 const canSelect=row=>type.value==='STORE_RETURN_DELAY'?row.status==='STORE_REWORKING':row.status!=='STORE_REWORKING'
 async function sendOne(row,channel){busy.value=row.orderNo+channel;try{const t=row.status==='STORE_REWORKING'?'STORE_RETURN_DELAY':type.value;await notificationApi.send({requestId:requestId(),orderNos:[row.orderNo],channels:[channel],type:t});ElMessage.warning('通知任务已记录，但供应商尚未配置');await load()}finally{busy.value=''}}
 async function sendBatch(){await ElMessageBox.confirm(`将为 ${selected.value.length} 个订单创建 ${channels.value.map(c=>c==='SMS'?'短信':'小程序').join('、')}通知任务。真实发送不可撤回。`,'批量通知',{type:'warning',confirmButtonText:'创建通知任务'});sending.value=true;try{await notificationApi.send({requestId:requestId(),orderNos:selected.value.map(x=>x.orderNo),channels:channels.value,type:type.value});ElMessage.warning('批量任务已记录，但供应商尚未配置');await load()}finally{sending.value=false}}

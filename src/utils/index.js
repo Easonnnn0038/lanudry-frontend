@@ -6,10 +6,15 @@ import { reactive } from 'vue'
 // 后端服务地址，与 request.js 的 baseURL 保持一致（去掉末尾的 /api）
 // IDEA 本地开发默认 http://localhost:8080，打包上线时可根据部署环境调整
 const BACKEND_BASE_URL =
-  (import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
+  (import.meta.env.VITE_BACKEND_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8080')).replace(/\/$/, '')
 
 const photoCache = reactive({})
 const photoLoading = new Set()
+
+// randomUUID 仅在 HTTPS/localhost 可用；HTTP 测试环境使用本地唯一值兜底。
+export function localId() {
+  return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`
+}
 
 function photoFilename(photo) {
   if (typeof photo === 'object' && photo?.filename) return photo.filename
