@@ -10,7 +10,7 @@
       <!-- Logo 区域 -->
       <div class="login-header">
         <div class="logo-wrapper">
-          <el-icon :size="48" color="#fff"><Cpu /></el-icon>
+          <img :src="brandLogo" alt="小木棒洗衣 Logo">
         </div>
         <h1 class="login-title">小木棒洗衣管理系统</h1>
         <p class="login-subtitle">LittleStickLaundry</p>
@@ -69,9 +69,10 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Lock, Cpu } from '@element-plus/icons-vue'
+import { User, Lock } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { login } from '@/api/auth'
+import brandLogo from '@/assets/brand-logo.png'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -236,12 +237,16 @@ async function handleLogin() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 96px;
+  height: 96px;
   margin-bottom: 16px;
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+  filter: drop-shadow(0 8px 12px rgba(10, 91, 99, 0.2));
+}
+
+.logo-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .login-title {

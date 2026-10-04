@@ -37,9 +37,10 @@ npm run electron:dev
 
 ```bash
 npm run build
+npm run electron:pack
 ```
 
-产物位于 `dist/`。Web 生产环境默认使用同域 `/api`；需要独立后端地址时可设置 `VITE_API_BASE_URL` 和 `VITE_BACKEND_BASE_URL`。
+Web 产物位于 `dist/`，Windows 安装程序位于 `release/`。桌面版通过 `.env.desktop` 配置 API；Web 生产环境默认使用同域 `/api`。
 
 ## 使用说明
 

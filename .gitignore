@@ -4,6 +4,9 @@ node_modules/
 # 构建输出
 dist/
 dist_electron/
+release/
+.electron-cache/
+.electron-builder-cache/
 
 # 日志
 *.log

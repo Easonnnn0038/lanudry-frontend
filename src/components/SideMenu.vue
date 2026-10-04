@@ -3,7 +3,7 @@
     <!-- Logo 区块 -->
     <div class="logo-section">
       <div class="logo-icon">
-        <el-icon :size="24" color="#fff"><Shop /></el-icon>
+        <img :src="brandLogo" alt="">
       </div>
       <span class="logo-text">洗衣门店系统</span>
     </div>
@@ -29,6 +29,7 @@
 import { computed } from 'vue'
 import { usePermissionStore } from '@/stores/permission'
 import * as Icons from '@element-plus/icons-vue'
+import brandLogo from '@/assets/brand-logo.png'
 
 const props = defineProps({
   activeMenu: {
@@ -102,12 +103,17 @@ function handleSelect(index) {
 .logo-icon {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  flex: 0 0 auto;
+}
+
+.logo-icon img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 6px rgba(10, 91, 99, 0.18));
 }
 
 .logo-text {
