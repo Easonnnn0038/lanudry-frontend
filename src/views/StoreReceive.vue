@@ -2,12 +2,12 @@
   <div class="receive-wrapper">
     <div class="draft-toolbar">
       <div>
-        <b>{{ rewashSource ? `${rewashSource.rewashType==='STORE_RETURN'?'店返':'客返'}录入 · 来源订单 ${rewashSource.sourceOrderNo}` : '门店收衣' }}</b>
-        <span>{{ rewashSource ? `返洗原因：${rewashSource.reason}` : '本机自动保存，24小时后标记过期' }}</span>
+        <b>{{ pickupSource ? `上门预约导入 · ${pickupSource.pickupNo}` : rewashSource ? `${rewashSource.rewashType==='STORE_RETURN'?'店返':'客返'}录入 · 来源订单 ${rewashSource.sourceOrderNo}` : '门店收衣' }}</b>
+        <span>{{ pickupSource ? '顾客和衣物已带入，请按正常收衣流程核对并结算' : rewashSource ? `返洗原因：${rewashSource.reason}` : '本机自动保存，24小时后标记过期' }}</span>
       </div>
       <div class="draft-actions">
-        <el-button v-if="!rewashSource" @click="hangOrder">保存挂单</el-button>
-        <el-button v-if="!rewashSource" type="primary" plain @click="draftDialogVisible = true">挂单记录（{{ drafts.length }}）</el-button>
+        <el-button v-if="!rewashSource && !pickupSource" @click="hangOrder">保存挂单</el-button>
+        <el-button v-if="!rewashSource && !pickupSource" type="primary" plain @click="draftDialogVisible = true">挂单记录（{{ drafts.length }}）</el-button>
       </div>
     </div>
     <!-- ============= 顶部步骤条 ============= -->
@@ -733,11 +733,13 @@ import ReceiptPreview from './components/ReceiptPreview.vue'
 const authStore = useAuthStore()
 const DRAFT_TTL = 24 * 60 * 60 * 1000
 const REWASH_PENDING_KEY = 'laundry_rewash_pending_v1'
+const PICKUP_PENDING_KEY = 'laundry_pickup_pending_v1'
 const draftStorageKey = `laundry_receive_drafts_v1:${authStore.username || 'local'}`
 const drafts = ref([])
 const draftDialogVisible = ref(false)
 const activeDraftId = ref(localId())
 const rewashSource = ref(null)
+const pickupSource = ref(null)
 let draftTimer = null
 let restoringDraft = false
 
@@ -1504,6 +1506,7 @@ async function submitOrder() {
     const useCardForPay = canUseCard.value && form.useCardPay
     const payload = {
       requestId: receiveRequestId.value || (receiveRequestId.value = localId()),
+      pickupOrderId: pickupSource.value?.id || null,
       sourceOrderId: rewashSource.value?.sourceOrderId || null,
       rewashType: rewashSource.value?.rewashType || null,
       rewashReason: rewashSource.value?.reason || null,
@@ -1553,6 +1556,7 @@ async function submitOrder() {
     const resp = await orderApi.receive(payload)
     removeDraft(activeDraftId.value)
     localStorage.removeItem(REWASH_PENDING_KEY)
+    localStorage.removeItem(PICKUP_PENDING_KEY)
     previewData.value = resp
     previewVisible.value = true
     ElMessage.success(`${rewashSource.value ? '返洗录入' : '收衣'}成功！订单号 ${resp.orderNo}`)
@@ -1596,6 +1600,7 @@ function resetAll(clearDraft = true) {
   activeGroup.value = 'CLOTHES'
   kw.value = ''
   rewashSource.value = null
+  pickupSource.value = null
   activeDraftId.value = localId()
 }
 
@@ -1623,7 +1628,7 @@ function hasDraftContent() {
 }
 
 function persistCurrent() {
-  if (restoringDraft || rewashSource.value || !hasDraftContent()) return false
+  if (restoringDraft || rewashSource.value || pickupSource.value || !hasDraftContent()) return false
   const now = Date.now()
   const previous = readDrafts().find(draft => draft.id === activeDraftId.value)
   const draft = {
@@ -1714,6 +1719,47 @@ function applyPendingRewash() {
   }
 }
 
+async function applyPendingPickup() {
+  try {
+    const pending = JSON.parse(localStorage.getItem(PICKUP_PENDING_KEY) || 'null')
+    if (!pending?.id || !Array.isArray(pending.items)) return false
+    restoringDraft = true
+    resetAll(false)
+    pickupSource.value = pending
+    Object.assign(custForm, {
+      customerId: null,
+      name: pending.customer?.name || '',
+      phone: pending.customer?.phone || '',
+      address: pending.customer?.address || '',
+      remark: ''
+    })
+    await onSearchCustomer()
+    form.items = pending.items.map(item => {
+      const category = allCategories.value.find(value => Number(value.id) === Number(item.categoryId))
+      if (!category) throw new Error(`衣物类别已停用：${item.categoryName}`)
+      const unitPrice = Number(category.originalPrice || category.price || 0)
+      return {
+        itemTempId: localId(), categoryId: category.id, categoryGroup: category.categoryGroup,
+        categoryName: item.categoryName, customName: null, quantity: Number(item.quantity || 1),
+        unitPrice, catalogPrice: unitPrice, memberPrice: computeMemberPrice(unitPrice, category), subtotal: 0,
+        color: '', brand: '', size: '', defect: '', special: ''
+      }
+    })
+    form.remark = pending.remark ? `上门取衣：${pending.remark}` : `上门取衣预约 ${pending.pickupNo}`
+    currentStep.value = 2
+    maxReachedStep.value = 4
+    recalc()
+    restoringDraft = false
+    ElMessage.success('预约顾客和衣物已带入，请核对后正常收衣')
+    return true
+  } catch (e) {
+    restoringDraft = false
+    localStorage.removeItem(PICKUP_PENDING_KEY)
+    ElMessage.error(e.message || '上门预约导入失败')
+    return false
+  }
+}
+
 // ============= 工具 =============
 function fmt(v) {
   const n = v == null ? 0 : Number(v)
@@ -1728,7 +1774,7 @@ onMounted(async () => {
     allCategories.value = await categoryApi.list() || []
     await loadCardTypes()
     drafts.value = readDrafts()
-    if (!applyPendingRewash()) {
+    if (!(await applyPendingPickup()) && !applyPendingRewash()) {
       const recent = drafts.value.find(draft => !isDraftExpired(draft))
       if (recent) {
         restoreDraft(recent, true)

@@ -10,6 +10,7 @@ const allMenus = [
     icon: 'Shop',
     children: [
       { index: 'store-receive', title: '门店收衣', icon: 'Box' },
+      { index: 'pickup-orders', title: '上门取衣单', icon: 'Van' },
       { index: 'store-temp', title: '暂存列表', icon: 'Files' },
       { index: 'store-load', title: '装车送厂', icon: 'Van' },
       { index: 'store-back', title: '衣物回店', icon: 'RefreshLeft' },

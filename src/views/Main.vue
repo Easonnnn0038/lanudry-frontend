@@ -17,6 +17,8 @@
         <!-- 收衣页面 -->
         <StoreReceive v-else-if="activeMenu === 'store-receive'" />
 
+        <StorePickupOrders v-else-if="activeMenu === 'pickup-orders'" />
+
         <!-- 暂存列表 -->
         <StoreStaging v-else-if="activeMenu === 'store-temp'" />
 
@@ -91,6 +93,7 @@ import { usePermissionStore } from '@/stores/permission'
 import SideMenu from '@/components/SideMenu.vue'
 import Dashboard from '@/views/Dashboard.vue'
 import StoreReceive from '@/views/StoreReceive.vue'
+import StorePickupOrders from '@/views/StorePickupOrders.vue'
 import StoreStaging from '@/views/StoreStaging.vue'
 import StoreLoad from '@/views/StoreLoad.vue'
 import StoreBack from '@/views/StoreBack.vue'

@@ -5,6 +5,7 @@ node_modules/
 dist/
 dist_electron/
 release/
+store-web-*.zip
 .electron-cache/
 .electron-builder-cache/
 

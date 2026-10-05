@@ -71,6 +71,13 @@ export const pickupApi = {
   close: (identifier, itemIds) => request.post('/pickup/close', { identifier, itemIds })
 }
 
+export const pickupOrderApi = {
+  list: (status) => request.get('/pickup-orders', { params: { status: status || undefined } }),
+  detail: (id) => request.get(`/pickup-orders/${id}`),
+  confirm: (id) => request.post(`/pickup-orders/${id}/confirm`),
+  pickedUp: (id) => request.post(`/pickup-orders/${id}/picked-up`)
+}
+
 export const storeOperationsApi = {
   notifications: () => request.get('/store-operations/notifications'),
   notify: (orderNo, channel) => request.post('/store-operations/notifications', { orderNo, channel }),
