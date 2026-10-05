@@ -41,6 +41,7 @@
         <div class="t-center small">( 客 户 联 )</div>
         <div class="t-info">
           <div class="row"><span class="k">订单号</span><span class="v mono">{{ data?.orderNo }}</span></div>
+          <div class="row"><span class="k">来&nbsp;&nbsp;源</span><span class="v">{{ data?.orderSource === 'MINIAPP' ? '小程序下单' : '门店下单' }}</span></div>
           <div class="row"><span class="k">日&nbsp;&nbsp;期</span><span class="v">{{ fmtDateTime(data?.receiveTime) }}</span></div>
           <div class="row"><span class="k">客&nbsp;&nbsp;户</span><span class="v">{{ data?.customerName }}</span></div>
           <div class="row"><span class="k">手机号</span><span class="v mono">{{ maskPhone(data?.customerPhone) }}</span></div>
@@ -280,6 +281,7 @@ function generatePrintHtml(mode) {
     <div class="t-center small">( 客 户 联 )</div>
     <div class="t-info">
       <div class="row"><span class="k">订单号</span><span class="v mono">${d.orderNo || ''}</span></div>
+      <div class="row"><span class="k">来&nbsp;&nbsp;源</span><span class="v">${d.orderSource === 'MINIAPP' ? '小程序下单' : '门店下单'}</span></div>
       <div class="row"><span class="k">日&nbsp;&nbsp;期</span><span class="v">${fmtDateTime(d.receiveTime)}</span></div>
       <div class="row"><span class="k">客&nbsp;&nbsp;户</span><span class="v">${d.customerName || ''}</span></div>
       <div class="row"><span class="k">手机号</span><span class="v mono">${maskPhone(d.customerPhone)}</span></div>

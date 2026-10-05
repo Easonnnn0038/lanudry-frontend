@@ -4,7 +4,7 @@
     <div class="search"><el-input v-model.trim="keyword" placeholder="手机号 / 订单号 / 衣物码" clearable @keyup.enter="search" /><el-button type="primary" :disabled="keyword.length<3" @click="search">查询</el-button></div>
     <el-table :data="rows" border stripe v-loading="loading" empty-text="暂无查询结果">
       <el-table-column label="订单号" min-width="190"><template #default="{row}">
-        <div class="order-cell"><span>{{ row.orderNo }}</span><el-tag v-if="['REWASH','CUSTOMER_RETURN'].includes(row.orderType)" type="warning" size="small">客返</el-tag><el-tag v-if="row.orderType==='STORE_RETURN'" type="danger" size="small">店返</el-tag><small v-if="row.sourceOrderNo">来源 {{ row.sourceOrderNo }}</small></div>
+        <div class="order-cell"><span>{{ row.orderNo }}</span><OrderSourceTag :source="row.orderSource" /><el-tag v-if="['REWASH','CUSTOMER_RETURN'].includes(row.orderType)" type="warning" size="small">客返</el-tag><el-tag v-if="row.orderType==='STORE_RETURN'" type="danger" size="small">店返</el-tag><small v-if="row.sourceOrderNo">来源 {{ row.sourceOrderNo }}</small></div>
       </template></el-table-column>
       <el-table-column prop="phone" label="手机号" min-width="135" />
       <el-table-column prop="barcode" label="衣物码" min-width="140" />
@@ -31,6 +31,7 @@ import { ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { orderApi, storeOperationsApi } from '@/api'
 import ReceiptPreview from '@/views/components/ReceiptPreview.vue'
+import OrderSourceTag from '@/components/OrderSourceTag.vue'
 const keyword=ref(''),rows=ref([]),loading=ref(false)
 const detail=ref(null),detailVisible=ref(false),detailLoading=ref(false),loadingOrderId=ref(null)
 const labelDetail=ref(null),labelVisible=ref(false),printLoading=ref('')

@@ -30,6 +30,9 @@
     <!-- 列表 -->
     <div class="list-card">
       <el-table :data="list" size="default" border stripe v-loading="loading" class="staging-table">
+        <el-table-column label="订单号 / 来源" min-width="190">
+          <template #default="{ row }"><div class="order-ident"><b>{{ row.orderNo }}</b><OrderSourceTag :source="row.orderSource" /></div></template>
+        </el-table-column>
         <el-table-column label="收衣时间" prop="receiveTime" width="160">
           <template #default="{ row }">
             {{ formatTime(row.receiveTime) }}
@@ -94,6 +97,7 @@
             <el-descriptions-item label="客户姓名">{{ detail.customerName }}</el-descriptions-item>
             <el-descriptions-item label="联系电话">{{ detail.customerPhone }}</el-descriptions-item>
             <el-descriptions-item label="收衣门店">{{ detail.storeName }}</el-descriptions-item>
+            <el-descriptions-item label="下单来源"><OrderSourceTag :source="detail.orderSource" /></el-descriptions-item>
             <el-descriptions-item label="收衣时间">{{ formatTime(detail.receiveTime) }}</el-descriptions-item>
             <el-descriptions-item label="订单状态">
               <el-tag :type="statusTagType(detail.status)" effect="light">{{ detail.statusLabel }}</el-tag>
@@ -227,6 +231,7 @@ import { ElMessage } from 'element-plus'
 import { orderApi } from '@/api/index'
 import { photoUrl } from '@/utils'
 import ReceiptPreview from '@/views/components/ReceiptPreview.vue'
+import OrderSourceTag from '@/components/OrderSourceTag.vue'
 
 // ============= 数据 =============
 const loading = ref(false)
@@ -370,6 +375,7 @@ onMounted(() => {
 .staging-table {
   width: 100%;
 }
+.order-ident { display: grid; justify-items: start; gap: 6px; font-variant-numeric: tabular-nums; }
 
 .customer-info {
   line-height: 1.5;

@@ -8,7 +8,7 @@
       <el-form-item><el-button type="danger" :disabled="!form.orderNo||!form.description" @click="create">登记异常</el-button></el-form-item>
     </el-form>
     <el-table :data="rows" border stripe v-loading="loading" empty-text="暂无错误回店记录">
-      <el-table-column prop="orderNo" label="订单号" min-width="170"/>
+      <el-table-column label="订单号 / 来源" min-width="190"><template #default="{row}"><div class="order-source-cell"><span>{{row.orderNo}}</span><OrderSourceTag :source="row.orderSource"/></div></template></el-table-column>
       <el-table-column label="类型" width="90"><template #default="{row}">{{ labels[row.type]||row.type }}</template></el-table-column>
       <el-table-column prop="description" label="异常说明" min-width="200"/><el-table-column label="状态" width="100"><template #default="{row}">{{ statusLabels[row.status]||row.status }}</template></el-table-column>
       <el-table-column prop="resolutionNote" label="处理说明" min-width="190"/>
@@ -20,6 +20,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeOperationsApi } from '@/api'
+import OrderSourceTag from '@/components/OrderSourceTag.vue'
 const rows=ref([]),loading=ref(false),form=reactive({orderNo:'',type:'MISSING',description:''})
 const labels={MISSING:'缺件',WRONG_ITEM:'错件',WRONG_STORE:'错店',OTHER:'其他'}
 const statusLabels={OPEN:'待处理',RETURNED:'已退回工厂',RECHECK:'重新核对'}

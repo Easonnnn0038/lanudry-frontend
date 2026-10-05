@@ -68,7 +68,7 @@
           </thead>
           <tbody>
             <tr v-for="order in recentOrders" :key="order.orderNo">
-              <td class="code-cell">{{ order.orderNo }}</td>
+              <td class="code-cell"><span>{{ order.orderNo }}</span><OrderSourceTag :source="order.orderSource" /></td>
               <td>{{ order.customer }}</td>
               <td>{{ order.items }}</td>
               <td>
@@ -102,6 +102,7 @@
             <el-descriptions-item label="客户">{{ detail.customerName }}</el-descriptions-item>
             <el-descriptions-item label="联系电话">{{ detail.customerPhone }}</el-descriptions-item>
             <el-descriptions-item label="订单状态">{{ detail.statusLabel }}</el-descriptions-item>
+            <el-descriptions-item label="下单来源"><OrderSourceTag :source="detail.orderSource" /></el-descriptions-item>
             <el-descriptions-item label="收衣时间">{{ formatTime(detail.receiveTime) }}</el-descriptions-item>
             <el-descriptions-item label="衣物件数">{{ detail.items?.length || 0 }} 件</el-descriptions-item>
             <el-descriptions-item label="实收金额">¥{{ fmtAmount(detail.totalReceivable) }}</el-descriptions-item>
@@ -154,6 +155,7 @@ import {
 } from '@element-plus/icons-vue'
 import { orderApi } from '@/api'
 import ReceiptPreview from '@/views/components/ReceiptPreview.vue'
+import OrderSourceTag from '@/components/OrderSourceTag.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -285,6 +287,7 @@ async function loadRecent() {
     recentOrders.value = (list || []).map((o) => ({
       orderId: o.orderId,
       orderNo: o.orderNo,
+      orderSource: o.orderSource,
       customer: o.customer,
       items: `${o.items || 0}件`,
       status: o.statusLabel,
@@ -610,6 +613,7 @@ export default {
   font-weight: 600;
   color: #3b82f6;
 }
+.code-cell span { display: block; margin-bottom: 6px; }
 
 .amount-cell {
   font-weight: 600;

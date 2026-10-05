@@ -17,13 +17,13 @@
           <div class="batch-title"><h3>回店批次 {{ batch.batchNo }}</h3><span>发货时间 {{ formatTime(batch.dispatchTime) }}</span></div>
           <div class="check-code"><el-input v-model.trim="orderNo" placeholder="扫描或输入订单号" clearable @keyup.enter="openOrder" /><el-button type="primary" :disabled="!orderNo" @click="openOrder">开始上架</el-button></div>
           <el-table :data="batch.orders" border stripe>
-            <el-table-column prop="orderNo" label="订单号" min-width="180" />
+            <el-table-column label="订单号 / 来源" min-width="190"><template #default="{row}"><div class="order-source-cell"><span>{{row.orderNo}}</span><OrderSourceTag :source="row.orderSource" /></div></template></el-table-column>
             <el-table-column label="上架进度" width="125"><template #default="{ row }">{{ row.scannedCount }}/{{ row.expectedCount }}</template></el-table-column>
             <el-table-column label="状态" width="125"><template #default="{ row }"><el-tag :type="tagType(row.status)">{{ statusLabel(row.status) }}</el-tag></template></el-table-column>
             <el-table-column label="操作" width="110"><template #default="{ row }"><el-button link type="primary" @click="orderNo = row.orderNo; openOrder()">查看</el-button></template></el-table-column>
           </el-table>
           <section v-if="order" class="order-panel">
-            <div class="order-heading"><h3>订单 {{ order.orderNo }}</h3><el-tag :type="tagType(order.status)">{{ statusLabel(order.status) }}</el-tag></div>
+            <div class="order-heading"><h3>订单 {{ order.orderNo }}</h3><OrderSourceTag :source="order.orderSource" /><el-tag :type="tagType(order.status)">{{ statusLabel(order.status) }}</el-tag></div>
             <p>已扫码上架 {{ order.scannedCount }}/{{ order.expectedCount }} 件</p>
             <el-alert v-if="order.exceptionReason" :title="`异常待客服：${order.exceptionReason}`" type="error" :closable="false" show-icon />
             <div v-if="order.status === 'WAIT_SCAN'" class="check-code scan-code"><el-input ref="itemInputRef" v-model.trim="itemCode" placeholder="扫描衣物码，按回车直接上架" clearable @keyup.enter="scanItem" /><el-button type="primary" :loading="busy" :disabled="!itemCode" @click="scanItem">扫码上架</el-button></div>
@@ -46,6 +46,7 @@ import { nextTick, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeReturnApi } from '@/api'
 import { useAuthStore } from '@/stores/auth'
+import OrderSourceTag from '@/components/OrderSourceTag.vue'
 const authStore = useAuthStore()
 const batches = ref([]); const batch = ref(null); const order = ref(null)
 const orderNo = ref(''); const itemCode = ref(''); const busy = ref(false)

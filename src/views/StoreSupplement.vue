@@ -3,12 +3,12 @@
     <header><div><h2>补收附件</h2><p>把后来送到门店的帽子、毛领、腰带等关联到原衣物，并生成独立衣物码。</p></div><span class="rule">补收费用暂记待收</span></header>
     <section class="search-row"><el-input v-model.trim="keyword" placeholder="输入完整订单号或手机号" clearable @keyup.enter="search"/><el-button type="primary" :disabled="keyword.length<4" @click="search">查找订单</el-button></section>
     <el-table v-if="orders.length" :data="orders" border stripe class="orders">
-      <el-table-column prop="orderNo" label="订单号" min-width="170"/><el-table-column prop="phone" label="手机号" min-width="140"/>
+      <el-table-column label="订单号 / 来源" min-width="190"><template #default="{row}"><div class="order-source-cell"><span>{{row.orderNo}}</span><OrderSourceTag :source="row.orderSource"/></div></template></el-table-column><el-table-column prop="phone" label="手机号" min-width="140"/>
       <el-table-column label="状态" width="120"><template #default="{row}">{{ statusName(row.status) }}</template></el-table-column>
       <el-table-column prop="totalCount" label="现有件数" width="100"/><el-table-column label="操作" width="100"><template #default="{row}"><el-button link type="primary" @click="open(row.orderNo)">选择</el-button></template></el-table-column>
     </el-table>
     <section v-if="detail" class="workspace">
-      <div class="order-title"><div><h3>订单 {{ detail.order_no }}</h3><span>{{ detail.customer_phone }} · {{ statusName(detail.status) }}</span></div><el-button @click="open(detail.order_no)">刷新</el-button></div>
+      <div class="order-title"><div><h3>订单 {{ detail.order_no }}</h3><OrderSourceTag :source="detail.order_source"/><span>{{ detail.customer_phone }} · {{ statusName(detail.status) }}</span></div><el-button @click="open(detail.order_no)">刷新</el-button></div>
       <div class="columns">
         <el-form label-position="top" class="form-panel">
           <h4>登记附件</h4>
@@ -33,6 +33,7 @@
 import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { orderApi, supplementApi } from '@/api'
+import OrderSourceTag from '@/components/OrderSourceTag.vue'
 const keyword=ref(''),orders=ref([]),detail=ref(null),busy=ref(false),labelVisible=ref(false)
 const form=reactive({parentItemId:null,attachmentName:'',feeAmount:0,remark:''}),created=reactive({attachmentName:'',barcode:'',orderNo:'',image:''})
 const garments=computed(()=>detail.value?.items?.filter(i=>i.itemKind==='GARMENT')||[])

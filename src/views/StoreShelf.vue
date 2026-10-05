@@ -22,7 +22,7 @@
 
     <section v-else-if="tab==='QUERY'" class="query-area">
       <div class="query-row"><el-input v-model.trim="query" placeholder="衣物码、订单号、手机号或货架号" clearable @keyup.enter="search"/><el-button type="primary" :disabled="!query" @click="search">查询</el-button></div>
-      <el-table :data="results" border stripe empty-text="暂无在架衣物"><el-table-column prop="shelfNo" label="货架号" width="105"/><el-table-column prop="barcode" label="衣物码" min-width="145"/><el-table-column prop="categoryName" label="衣物" min-width="130"/><el-table-column prop="orderNo" label="订单号" min-width="170"/><el-table-column prop="phone" label="手机号" min-width="140"/><el-table-column label="上架时间" min-width="165"><template #default="{row}">{{ time(row.onShelfTime) }}</template></el-table-column></el-table>
+      <el-table :data="results" border stripe empty-text="暂无在架衣物"><el-table-column prop="shelfNo" label="货架号" width="105"/><el-table-column prop="barcode" label="衣物码" min-width="145"/><el-table-column prop="categoryName" label="衣物" min-width="130"/><el-table-column label="订单号 / 来源" min-width="180"><template #default="{row}"><div class="order-ident"><span>{{row.orderNo}}</span><OrderSourceTag :source="row.orderSource"/></div></template></el-table-column><el-table-column prop="phone" label="手机号" min-width="140"/><el-table-column label="上架时间" min-width="165"><template #default="{row}">{{ time(row.onShelfTime) }}</template></el-table-column></el-table>
     </section>
 
     <section v-else class="settings-area">
@@ -36,6 +36,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { shelfApi } from '@/api'
 import { useAuthStore } from '@/stores/auth'
+import OrderSourceTag from '@/components/OrderSourceTag.vue'
 const auth=useAuthStore(),isAdmin=computed(()=>auth.role==='ADMIN'),tab=ref('SHELF'),overview=ref(null),barcode=ref(''),preferred=ref(),allocation=ref(null),busy=ref(false),barcodeInput=ref(null),query=ref(''),results=ref([]),newMax=ref(1700),manageNo=ref(1)
 const time=v=>v?String(v).replace('T',' ').slice(0,19):'—'
 async function refreshOverview(){overview.value=await shelfApi.overview();newMax.value=overview.value.maxShelfNo}

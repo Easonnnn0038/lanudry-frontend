@@ -17,7 +17,7 @@
         <el-checkbox :model-value="allSelected" :indeterminate="partSelected" @change="toggleAll">全部选择</el-checkbox>
       </div>
       <div v-for="order in result.orders" :key="order.orderNo" class="order-group">
-        <div class="order-head"><b>订单 {{ order.orderNo }}</b><span>{{ order.maskedPhone }}</span></div>
+        <div class="order-head"><div><b>订单 {{ order.orderNo }}</b><OrderSourceTag :source="order.orderSource" /></div><span>{{ order.maskedPhone }}</span></div>
         <label v-for="item in order.items" :key="item.id" class="garment-row">
           <el-checkbox v-model="selected" :value="item.id" />
           <div class="garment"><strong>{{ item.categoryName }}</strong><span>{{ item.color || '未填颜色' }} · 衣物码 {{ item.barcode }}</span></div>
@@ -34,7 +34,7 @@
       <div class="section-head"><h3>已回店待取订单</h3><span>{{ ready.length }} 单</span></div>
       <el-empty v-if="!ready.length" description="暂无待取订单" />
       <div v-for="entry in ready" :key="entry.orderNo" class="ready-row">
-        <div><b>{{ entry.orderNo }}</b><span>{{ entry.maskedPhone }}</span></div>
+        <div><b>{{ entry.orderNo }}</b><OrderSourceTag :source="entry.orderSource" /><span>{{ entry.maskedPhone }}</span></div>
         <div><strong>{{ entry.remainingCount }} 件待取</strong><small v-if="entry.status==='PARTIALLY_PICKED_UP'">已部分取件</small></div>
       </div>
     </section>
@@ -50,6 +50,7 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { pickupApi } from '@/api'
+import OrderSourceTag from '@/components/OrderSourceTag.vue'
 
 const identifier=ref(''),result=ref(null),selected=ref([]),ready=ref([]),loading=ref(false),busy=ref(false),lastPickup=ref(null),identifierInput=ref()
 const validIdentifier=computed(()=>/^1\d{10}$/.test(identifier.value)||/^\d{4}$/.test(identifier.value))

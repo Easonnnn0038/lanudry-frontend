@@ -10,7 +10,7 @@
     <el-card class="order-card" shadow="never">
       <el-table ref="tableRef" v-loading="loading" :data="orders" row-key="id" size="large" @selection-change="selected = $event">
         <el-table-column type="selection" width="60" />
-        <el-table-column prop="orderNo" label="订单号" min-width="170" />
+        <el-table-column label="订单号 / 来源" min-width="190"><template #default="{row}"><div class="order-source-cell"><span>{{row.orderNo}}</span><OrderSourceTag :source="row.orderSource" /></div></template></el-table-column>
         <el-table-column label="类型" width="100">
           <template #default="{ row }"><el-tag :type="row.urgentFlag === 1 ? 'danger' : 'info'" size="large">{{ row.urgentFlag === 1 ? '加急' : '普通' }}</el-tag></template>
         </el-table-column>
@@ -30,7 +30,7 @@
     <el-dialog v-model="resultVisible" title="送厂批次创建成功" width="620px" :close-on-click-modal="false">
       <el-result icon="success" title="打包送厂成功" :sub-title="`送厂批次：${result?.batchNo || ''}`" />
       <el-table :data="result?.packages || []" border>
-        <el-table-column prop="orderNo" label="订单号" />
+        <el-table-column label="订单号 / 来源" min-width="190"><template #default="{row}"><div class="order-source-cell"><span>{{row.orderNo}}</span><OrderSourceTag :source="row.orderSource" /></div></template></el-table-column>
         <el-table-column prop="itemCount" label="件数" width="80" />
       </el-table>
       <template #footer><el-button size="large" @click="printOrderLabels">打印订单包裹标签</el-button><el-button type="primary" size="large" @click="resultVisible = false; loadOrders()">完成</el-button></template>
@@ -43,6 +43,7 @@ import { computed, onMounted, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { factoryDispatchApi, orderApi } from '@/api'
+import OrderSourceTag from '@/components/OrderSourceTag.vue'
 
 const loading = ref(false); const submitting = ref(false); const orders = ref([]); const selected = ref([])
 const resultVisible = ref(false); const result = ref(null)
@@ -76,7 +77,7 @@ async function printOrderLabels() {
       .label{width:110mm;height:30mm;padding:2.5mm 4mm;page-break-after:always;display:grid;grid-template-columns:1fr 34mm;gap:4mm;align-items:center;overflow:hidden}
       .label:last-child{page-break-after:auto}.info{display:grid;gap:1.5mm}.batch{font-size:9pt}.order{font-size:15pt;font-weight:700;letter-spacing:.5px}.count{font-size:10pt}
       img{width:34mm;height:16mm;object-fit:fill}.code{text-align:center;font:700 8pt monospace;margin-top:1mm}@media screen{body{background:#eee}.label{background:#fff;margin:10px auto;border:1px solid #bbb}}
-    </style></head><body>${labels.map(row => `<section class="label"><div class="info"><div class="batch">送厂批次 ${result.value.batchNo}</div><div class="order">订单 ${row.orderNo}</div><div class="count">共 ${row.itemCount} 件衣物</div></div><div><img src="${row.image}" alt="订单号条码"><div class="code">${row.orderNo}</div></div></section>`).join('')}</body></html>`)
+    </style></head><body>${labels.map(row => `<section class="label"><div class="info"><div class="batch">送厂批次 ${result.value.batchNo}</div><div class="order">订单 ${row.orderNo}</div><div class="count">${row.orderSource === 'MINIAPP' ? '小程序下单' : '门店下单'} · 共 ${row.itemCount} 件衣物</div></div><div><img src="${row.image}" alt="订单号条码"><div class="code">${row.orderNo}</div></div></section>`).join('')}</body></html>`)
     win.document.close()
     await Promise.all([...win.document.images].map(img => img.complete ? Promise.resolve() : new Promise(resolve => { img.onload = img.onerror = resolve })))
     win.focus(); win.print()
