@@ -30,7 +30,7 @@
 
         <StoreNotify v-else-if="activeMenu === 'store-notify'" />
 
-        <StoreQuery v-else-if="activeMenu === 'store-query'" />
+        <StoreQuery v-else-if="activeMenu === 'store-query'" :key="queryTab" :initial-tab="queryTab" />
 
         <StoreError v-else-if="activeMenu === 'store-error'" />
 
@@ -112,6 +112,7 @@ const authStore = useAuthStore()
 const permissionStore = usePermissionStore()
 
 const activeMenu = ref('dashboard')
+const queryTab = ref('orders')
 
 // 图标映射表
 const iconMap = {
@@ -163,12 +164,18 @@ const currentIcon = computed(() => {
 
 // 菜单选择
 function handleMenuSelect(index) {
+  if (index === 'store-query') queryTab.value = 'orders'
   activeMenu.value = index
 }
 
 // 监听 Dashboard 的导航事件
 function onNavigateMenu(e) {
-  activeMenu.value = e.detail
+  if (typeof e.detail === 'object') {
+    queryTab.value = e.detail.tab || 'orders'
+    activeMenu.value = e.detail.menu
+  } else {
+    activeMenu.value = e.detail
+  }
 }
 
 // 退出登录

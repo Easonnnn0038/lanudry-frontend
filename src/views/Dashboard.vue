@@ -68,7 +68,7 @@
           </thead>
           <tbody>
             <tr v-for="order in recentOrders" :key="order.orderNo">
-              <td class="code-cell"><span>{{ order.orderNo }}</span><OrderSourceTag :source="order.orderSource" /></td>
+              <td class="code-cell">{{ order.orderNo }}</td>
               <td>{{ order.customer }}</td>
               <td>{{ order.items }}</td>
               <td>
@@ -229,9 +229,9 @@ const actions = ref([
   },
   {
     key: 'customer-query',
-    title: '查询客户',
-    desc: '查找客户信息和历史订单',
-    btnText: '查询客户',
+    title: '衣物查询',
+    desc: '按手机号、订单号或衣物码查询',
+    btnText: '查询衣物',
     primary: false,
     icon: Search,
     bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
@@ -287,7 +287,6 @@ async function loadRecent() {
     recentOrders.value = (list || []).map((o) => ({
       orderId: o.orderId,
       orderNo: o.orderNo,
-      orderSource: o.orderSource,
       customer: o.customer,
       items: `${o.items || 0}件`,
       status: o.statusLabel,
@@ -308,7 +307,9 @@ function handleAction(key) {
   } else if (key === 'pickup') {
     emitNavigate('store-close')
   } else if (key === 'customer-query') {
-    emitNavigate('store-query')
+    emitNavigate({ menu: 'store-query', tab: 'clothes' })
+  } else if (key === 'order-manage') {
+    emitNavigate({ menu: 'store-query', tab: 'orders' })
   } else {
     ElMessage.info('功能开发中')
   }
@@ -613,7 +614,6 @@ export default {
   font-weight: 600;
   color: #3b82f6;
 }
-.code-cell span { display: block; margin-bottom: 6px; }
 
 .amount-cell {
   font-weight: 600;

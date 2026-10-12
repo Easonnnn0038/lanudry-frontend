@@ -34,6 +34,8 @@ export const memberCardApi = {
 
 /** 订单相关接口 */
 export const orderApi = {
+  /** 当前门店全部订单（分页） */
+  list: (params) => request.get('/order/list', { params }),
   /** 提交收衣订单（核心） */
   receive: (data) => request.post('/order/receive', data),
   /** 生成条码图 */

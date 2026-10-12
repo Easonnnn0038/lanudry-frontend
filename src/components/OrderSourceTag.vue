@@ -1,6 +1,6 @@
 <template>
   <el-tag :type="source === 'MINIAPP' ? 'success' : 'info'" effect="plain" size="small" class="order-source">
-    {{ source === 'MINIAPP' ? '小程序下单' : '门店下单' }}
+    {{ source === 'MINIAPP' ? '小程序下单' : '线下下单' }}
   </el-tag>
 </template>
 
