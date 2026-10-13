@@ -1,5 +1,6 @@
-const { app, BrowserWindow, Menu } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron')
 const path = require('path')
+const fs = require('fs')
 
 const isDev = !app.isPackaged
 
@@ -10,6 +11,14 @@ if (process.getuid && process.getuid() === 0) {
 }
 
 let mainWindow = null
+
+function productionUrl() {
+  const configPath = path.join(__dirname, 'app-config.json')
+  const configured = process.env.LAUNDRY_APP_URL || JSON.parse(fs.readFileSync(configPath, 'utf8')).productionUrl
+  const url = new URL(configured)
+  if (!['http:', 'https:'].includes(url.protocol)) throw new Error('productionUrl 仅支持 http/https')
+  return url.toString()
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -31,7 +40,7 @@ function createWindow() {
     // 开发模式加载 Vite 开发服务器
     mainWindow.loadURL('http://localhost:5173')
   } else {
-    mainWindow.loadURL('http://124.220.168.222/')
+    mainWindow.loadURL(productionUrl())
   }
 
   mainWindow.on('closed', () => {
@@ -45,6 +54,12 @@ if (!isDev) {
 }
 
 app.whenReady().then(() => {
+  ipcMain.handle('app:get-version', () => app.getVersion())
+  ipcMain.handle('app:open-external', (_event, target) => {
+    const url = new URL(target)
+    if (!['http:', 'https:'].includes(url.protocol)) throw new Error('仅允许打开网页链接')
+    return shell.openExternal(url.toString())
+  })
   createWindow()
 
   app.on('activate', () => {
@@ -60,7 +75,10 @@ app.on('window-all-closed', () => {
   }
 })
 
-// 安全设置：阻止创建额外的窗口
+// 收衣凭证和送厂标签会打开空白打印窗口；其余新窗口仍禁止。
 app.on('web-contents-created', (_event, contents) => {
-  contents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  contents.setWindowOpenHandler(({ url }) =>
+    contents === mainWindow?.webContents && url === 'about:blank'
+      ? { action: 'allow', overrideBrowserWindowOptions: { webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true } } }
+      : { action: 'deny' })
 })

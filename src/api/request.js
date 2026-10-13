@@ -2,6 +2,7 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
+import { requestErrorKind } from './request-errors.mjs'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:8080/api')
 
@@ -26,7 +27,7 @@ function reportClientError(config, message, status) {
   if (!token) return
   fetch(`${API_BASE_URL}/maintenance/client-error`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ module: '门店前端', message: String(message || '请求失败').slice(0, 1000), path, clientVersion: '1.0.0' })
+    body: JSON.stringify({ module: '门店前端', message: String(message || '请求失败').slice(0, 1000), path, clientVersion: __APP_VERSION__ })
   }).catch(() => {})
 }
 
@@ -41,7 +42,6 @@ service.interceptors.request.use(
     return config
   },
   (error) => {
-    console.error('请求错误:', error)
     return Promise.reject(error)
   }
 )
@@ -80,12 +80,12 @@ service.interceptors.response.use(
     return Promise.reject(new Error(res.message || '请求失败'))
   },
   (error) => {
-    console.error('响应错误:', error)
     const url = error.config?.url || ''
     const status = error.response?.status
+    const kind = requestErrorKind(error)
 
     // HTTP 状态码 401
-    if (status === 401 && !url.includes('/auth/login')) {
+    if (kind === 'unauthorized' && !url.includes('/auth/login')) {
       ElMessage.error('登录已过期，请重新登录')
       const authStore = useAuthStore()
       authStore.clearAuth()
@@ -96,19 +96,19 @@ service.interceptors.response.use(
     }
 
     // HTTP 状态码 403
-    if (status === 403) {
+    if (kind === 'forbidden') {
       ElMessage.error('没有权限访问该资源')
       return Promise.reject(error)
     }
 
     // 网络错误 / 后端没启动
-    if (error.message === 'Network Error') {
+    if (kind === 'network') {
       ElMessage.error('网络连接异常，请稍后重试')
       return Promise.reject(error)
     }
 
     // 请求超时
-    if (error.code === 'ECONNABORTED') {
+    if (kind === 'timeout') {
       ElMessage.error('请求超时，请稍后重试')
       return Promise.reject(error)
     }

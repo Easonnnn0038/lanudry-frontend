@@ -10,6 +10,11 @@ export const categoryApi = {
   save: (data) => request.post('/category/save', data)
 }
 
+export const dealPackageApi = {
+  list: () => request.get('/deal-packages'),
+  save: data => request.post('/deal-packages', data)
+}
+
 /** 客户相关接口 */
 export const customerApi = {
   /** 按手机号查询客户信息+会员卡 */

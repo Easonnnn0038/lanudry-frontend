@@ -1,15 +1,6 @@
 <template>
   <div class="receive-wrapper">
-    <div class="draft-toolbar">
-      <div>
-        <b>{{ pickupSource ? `上门预约导入 · ${pickupSource.pickupNo}` : rewashSource ? `${rewashSource.rewashType==='STORE_RETURN'?'店返':'客返'}录入 · 来源订单 ${rewashSource.sourceOrderNo}` : '门店收衣' }}</b>
-        <span>{{ pickupSource ? '顾客和衣物已带入，请按正常收衣流程核对并结算' : rewashSource ? `返洗原因：${rewashSource.reason}` : '本机自动保存，24小时后标记过期' }}</span>
-      </div>
-      <div class="draft-actions">
-        <el-button v-if="!rewashSource && !pickupSource" @click="hangOrder">保存挂单</el-button>
-        <el-button v-if="!rewashSource && !pickupSource" type="primary" plain @click="draftDialogVisible = true">挂单记录（{{ drafts.length }}）</el-button>
-      </div>
-    </div>
+    <ReceiveDraftManager v-model="draftDialogVisible" :pickup-source="pickupSource" :rewash-source="rewashSource" :drafts="drafts" :is-expired="isDraftExpired" @save="hangOrder" @restore="restoreDraft" @delete="deleteDraft" />
     <!-- ============= 顶部步骤条 ============= -->
     <div class="steps-bar">
       <el-steps :active="currentStep" align-center finish-status="success" process-status="process">
@@ -29,544 +20,19 @@
     <div class="step-content">
 
       <!-- ===== Step 0: 客户信息 ===== -->
-      <div v-show="currentStep === 0" class="step-panel step-customer">
-        <div class="card-box">
-          <div class="card-title">
-            <el-icon :size="18"><User /></el-icon>
-            <span>客户信息</span>
-            <el-tag v-if="isNewCustomer" type="success" size="small" effect="plain">新客户</el-tag>
-            <el-tag v-else-if="custForm.phone" type="info" size="small" effect="plain">老客户</el-tag>
-          </div>
-
-          <el-form :model="custForm" label-width="80px" size="large" @submit.prevent="onSearchCustomer">
-            <el-form-item label="手机号" class="phone-item">
-              <el-input
-                v-model="custForm.phone"
-                placeholder="输入11位手机号后回车查询"
-                maxlength="11"
-                clearable
-                @keyup.enter="onSearchCustomer"
-                @blur="onPhoneBlur"
-              >
-                <template #append>
-                  <el-button :icon="Search" type="primary" @click="onSearchCustomer">查询</el-button>
-                </template>
-              </el-input>
-            </el-form-item>
-            <el-form-item label="姓名">
-              <el-input v-model="custForm.name" placeholder="请输入姓名" maxlength="20" />
-            </el-form-item>
-            <el-form-item label="地址">
-              <el-input v-model="custForm.address" placeholder="小区/栋/门牌号（可选）" maxlength="100" />
-            </el-form-item>
-            <el-form-item label="备注">
-              <el-input v-model="custForm.remark" type="textarea" :rows="2" maxlength="100" placeholder="客户特殊标记（可选）" />
-            </el-form-item>
-          </el-form>
-
-          <div v-if="customerDetail" class="customer-stats">
-            <span>累计 <b>{{ customerDetail.totalCount }}</b> 件</span>
-            <span class="divider">|</span>
-            <span>累计 <b>¥{{ fmt(customerDetail.totalAmount) }}</b></span>
-          </div>
-        </div>
-      </div>
+      <ReceiveCustomerStep v-show="currentStep === 0" :customer="custForm" :customer-detail="customerDetail" :is-new-customer="isNewCustomer" :format="fmt" @search="onSearchCustomer" @phone-blur="onPhoneBlur" />
 
       <!-- ===== Step 1: 会员卡 ===== -->
-      <div v-show="currentStep === 1" class="step-panel step-card">
-        <div class="card-box member-card-box">
-          <div class="card-title">
-            <el-icon :size="18"><CreditCard /></el-icon>
-            <span>会员卡</span>
-            <el-tooltip
-              v-if="!currentCard && form.newCardFlag !== 1"
-              content="请先勾选下方「收衣同时办卡」"
-              placement="top"
-            >
-              <el-button type="primary" link class="ml-auto" disabled>
-                <el-icon><Plus /></el-icon>办卡
-              </el-button>
-            </el-tooltip>
-            <el-button v-else-if="!currentCard && form.newCardFlag === 1" type="primary" link class="ml-auto" @click="openCreateCard">
-              <el-icon><Plus /></el-icon>办卡
-            </el-button>
-          </div>
-
-          <div v-if="currentCard" class="mc-box">
-            <div class="mc-header">
-              <div>
-                <div class="mc-no">{{ currentCard.cardNo }}</div>
-                <div class="mc-type">
-                  <el-tag type="warning" size="small">{{ currentCard.cardTypeName }}</el-tag>
-                  <span class="mc-rate">折扣 {{ currentCard.discountRate }} 折</span>
-                </div>
-              </div>
-              <div class="mc-balance">
-                <div class="label">余额</div>
-                <div class="value">¥{{ fmt(currentCard.balance) }}</div>
-              </div>
-            </div>
-            <div class="mc-stats">
-              <span>累计充值 ¥{{ fmt(currentCard.totalRecharge) }}</span>
-              <span>累计消费 ¥{{ fmt(currentCard.totalConsume) }}</span>
-            </div>
-            <div class="mc-actions">
-              <el-button size="small" type="danger" link @click="detachCard">不使用此卡</el-button>
-            </div>
-          </div>
-
-          <el-empty v-else description="暂无会员卡，可勾选「收衣同时办卡」" :image-size="70">
-            <template #footer>
-              <el-button type="primary" link @click="openCreateCard">新办一张会员卡</el-button>
-            </template>
-          </el-empty>
-
-          <!-- 收衣同时充值开关（只有已有会员卡时才显示） -->
-          <div v-if="currentCard" class="new-card-toggle">
-            <el-checkbox v-model="form.rechargeFlag" :true-value="1" :false-value="0" @change="onRechargeChange">
-              收衣同时充值
-            </el-checkbox>
-
-            <div v-if="form.rechargeFlag === 1" class="new-card-options">
-              <el-form label-width="80px" size="default">
-                <el-form-item label="充值类型" required>
-                  <el-select v-model="form.rechargeCardTypeId" placeholder="选择充值类型" style="width: 100%" @change="recalc">
-                    <el-option
-                      v-for="t in cardTypeList"
-                      :key="t.id"
-                      :label="`${t.name} · 充 ¥${t.amount}`"
-                      :value="t.id"
-                    />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="支付方式" required>
-                  <el-radio-group v-model="form.rechargePayMethod">
-                    <el-radio-button label="CASH">现金</el-radio-button>
-                    <el-radio-button label="WECHAT">微信</el-radio-button>
-                    <el-radio-button label="ALIPAY">支付宝</el-radio-button>
-                  </el-radio-group>
-                </el-form-item>
-                <el-alert
-                  type="success" :closable="false" show-icon size="small"
-                  :title="`充值 ¥${rechargeType?.amount || 0} 将计入本次收款，充后余额 ¥${fmt(rechargeBalanceAfter)}`"
-                />
-              </el-form>
-            </div>
-          </div>
-
-          <!-- 收衣同时办卡开关（只有无会员卡时才显示） -->
-          <div v-if="!currentCard" class="new-card-toggle">
-            <el-checkbox v-model="form.newCardFlag" :true-value="1" :false-value="0" @change="onNewCardChange">
-              收衣同时办卡
-            </el-checkbox>
-
-            <div v-if="form.newCardFlag === 1" class="new-card-options">
-              <el-form label-width="80px" size="default">
-                <el-form-item label="卡类型" required>
-                  <el-select v-model="form.newCardTypeId" placeholder="选择卡类型" style="width: 100%" @change="recalc">
-                    <el-option
-                      v-for="t in cardTypeList"
-                      :key="t.id"
-                      :label="`${t.name} · 充 ¥${t.amount} · ${t.discountRate}折`"
-                      :value="t.id"
-                    />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="支付方式" required>
-                  <el-radio-group v-model="form.newCardPayMethod">
-                    <el-radio-button label="CASH">现金</el-radio-button>
-                    <el-radio-button label="WECHAT">微信</el-radio-button>
-                    <el-radio-button label="ALIPAY">支付宝</el-radio-button>
-                  </el-radio-group>
-                </el-form-item>
-                <el-alert
-                  type="success" :closable="false" show-icon size="small"
-                  :title="`所选卡：¥${newCardType?.amount || 0} 将作为余额到账，折扣 ${newCardType?.discountRate || '—'} 折`"
-                />
-              </el-form>
-            </div>
-          </div>
-        </div>
-      </div>
-
+      <ReceiveMemberStep v-show="currentStep === 1" :form="form" :current-card="currentCard" :card-types="cardTypeList" :new-card-type="newCardType" :recharge-type="rechargeType" :recharge-balance-after="rechargeBalanceAfter" :format="fmt" @open-card="openCreateCard" @detach-card="detachCard" @new-card-change="onNewCardChange" @recharge-change="onRechargeChange" @recalculate="recalc" />
       <!-- ===== Step 2: 衣物明细 ===== -->
-      <div v-show="currentStep === 2" class="step-panel step-items">
-        <!-- 类别选择 -->
-        <div v-if="!rewashSource" class="card-box category-card">
-          <div class="card-title">
-            <el-icon :size="18"><Box /></el-icon>
-            <span>衣物类别</span>
-            <el-input
-              v-model="kw"
-              size="small"
-              clearable
-              placeholder="搜索类别（如 衬衫）"
-              style="width: 220px"
-              :prefix-icon="Search"
-              @input="onSearchCategory"
-            />
-          </div>
-
-          <el-tabs v-model="activeGroup" type="card" class="cat-tabs">
-            <el-tab-pane
-              v-for="g in groups"
-              :key="g.key"
-              :label="g.label"
-              :name="g.key"
-            >
-              <div class="cat-grid">
-                <div
-                  v-for="c in categoriesByGroup[g.key]"
-                  :key="c.id"
-                  class="cat-cell"
-                  :class="{ active: isCatSelected(c.id) }"
-                  @click="onAddCategory(c)"
-                >
-                  <div class="cat-name">{{ c.categoryLevel2 }}</div>
-                  <div class="cat-price">
-                    <span v-if="c.priceMode === 1">¥{{ fmt(c.originalPrice) }}</span>
-                    <span v-else>
-                      <span class="orig">¥{{ fmt(c.originalPrice) }}</span>
-                      <span class="mp300">300卡 ¥{{ fmt(c.memberPrice300) }}</span>
-                      <span class="mp500">500卡 ¥{{ fmt(c.memberPrice500) }}</span>
-                    </span>
-                  </div>
-                </div>
-                <div v-if="!categoriesByGroup[g.key]?.length" class="empty-grid">
-                  <el-empty description="暂无类别" :image-size="50" />
-                </div>
-              </div>
-            </el-tab-pane>
-          </el-tabs>
-        </div>
-
-        <!-- 明细列表 -->
-        <div class="card-box items-card">
-          <div class="card-title">
-            <el-icon :size="18"><List /></el-icon>
-            <span>衣物明细</span>
-            <span class="count-badge">共 {{ form.items.length }} 件</span>
-            <el-button v-if="authStore.isAdmin && customCategory" type="primary" plain size="small" @click="onAddCategory(customCategory)">自定义衣物</el-button>
-          </div>
-
-          <el-table :data="form.items" size="default" border stripe class="items-table">
-            <el-table-column label="#" width="50" align="center" type="index" />
-            <el-table-column label="类别" min-width="150">
-              <template #default="{ row }">
-                <el-tag size="small" type="info">{{ groupLabel(row.categoryGroup) }}</el-tag>
-                <span class="cat-name">{{ row.categoryName }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="颜色" width="80" align="center">
-              <template #default="{ row }">
-                <el-tag v-if="row.color" size="small" :color="colorHex(row.color)" effect="dark">{{ row.color }}</el-tag>
-                <span v-else class="muted">-</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="品牌" width="100">
-              <template #default="{ row }">
-                <span>{{ row.brand || '-' }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="尺码" width="70" align="center">
-              <template #default="{ row }">
-                <span>{{ row.size || '-' }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="数量" width="100" align="center">
-              <template #default="{ row }">
-                <el-input-number v-model="row.quantity" :min="1" :max="99" size="default" controls-position="right" @change="recalc" />
-              </template>
-            </el-table-column>
-            <el-table-column label="原价" width="120" align="right">
-              <template #default="{ row }">
-                <el-input-number
-                  v-model="row.unitPrice"
-                  :min="0" :precision="2" :step="1"
-                  :disabled="!!rewashSource || !authStore.isAdmin"
-                  size="default" controls-position="right"
-                  @change="recalc"
-                />
-              </template>
-            </el-table-column>
-            <el-table-column label="会员价" width="100" align="right">
-              <template #default="{ row }">
-                <span class="member-price">¥{{ fmt(row.memberPrice) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="小计" width="110" align="right">
-              <template #default="{ row }">
-                <b class="subtotal">¥{{ fmt(row.subtotal) }}</b>
-              </template>
-            </el-table-column>
-            <el-table-column label="详情" min-width="220">
-              <template #default="{ row }">
-                <div class="item-desc">
-                  <div v-if="row.defect"><el-tag size="small" type="danger">瑕疵:{{ row.defect }}</el-tag></div>
-                  <div v-if="row.special"><el-tag size="small" type="warning">特殊:{{ row.special }}</el-tag></div>
-                  <el-button link size="small" type="primary" @click="editItem(row)">编辑</el-button>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="70" align="center" fixed="right">
-              <template #default="{ $index }">
-                <el-button type="danger" link :icon="Delete" @click="removeItem($index)" />
-              </template>
-            </el-table-column>
-          </el-table>
-          <el-empty v-if="!form.items.length" description="请从上方类别中点击添加衣物，将弹出颜色/品牌/尺码填写窗口" :image-size="80" />
-        </div>
-      </div>
+      <ReceiveItemsStep v-show="currentStep === 2" v-model:keyword="kw" v-model:active-group="activeGroup" :rewash-source="rewashSource" :groups="groups" :categories-by-group="categoriesByGroup" :is-selected="isCatSelected" :items="form.items" :is-admin="authStore.isAdmin" :custom-category="customCategory" :format="fmt" :group-label="groupLabel" :color-hex="colorHex" @search="onSearchCategory" @add="onAddCategory" @recalculate="recalc" @edit="editItem" @remove="removeItem" />
 
       <!-- ===== Step 3: 瑕疵拍照 ===== -->
-      <div v-show="currentStep === 3" class="step-panel step-photo">
-        <div class="card-box photo-card">
-          <div class="card-title">
-            <el-icon :size="18"><Camera /></el-icon>
-            <span>瑕疵拍照取证</span>
-            <el-tag v-if="form.defectPhotos?.length" type="warning" size="small" class="photo-count">
-              已拍 {{ form.defectPhotos.length }} 张
-            </el-tag>
-          </div>
-
-          <!-- 脚踏拍照状态 -->
-          <div class="pedal-status" :class="{ active: pedalEnabled }">
-            <el-icon :size="14"><VideoCamera /></el-icon>
-            <span>脚踏板：{{ pedalEnabled ? '已连接 (键: ' + pedalKeyName + ')' : '未启用' }}</span>
-            <el-button link size="small" @click="togglePedal">
-              {{ pedalEnabled ? '关闭' : '启用' }}
-            </el-button>
-          </div>
-
-          <!-- 拍照/上传按钮 -->
-          <div class="photo-actions">
-            <el-button :icon="Camera" type="primary" size="large" @click="triggerCamera" :loading="photoUploading">
-              <input
-                ref="cameraInputRef"
-                type="file"
-                accept="image/*"
-                capture="environment"
-                style="display:none"
-                @change="onPhotoCapture"
-              />
-              拍照
-            </el-button>
-            <el-button :icon="UploadFilled" size="large" @click="triggerFileUpload" :disabled="photoUploading">
-              <input
-                ref="fileInputRef"
-                type="file"
-                accept="image/*"
-                multiple
-                style="display:none"
-                @change="onPhotoCapture"
-              />
-              上传
-            </el-button>
-            <el-button
-              v-if="form.defectPhotos?.length"
-              :icon="Delete"
-              type="danger"
-              link
-              @click="clearPhotos"
-            >
-              清空
-            </el-button>
-          </div>
-
-          <!-- 照片网格：每张照片显示瑕疵类型标签 -->
-          <div v-if="form.defectPhotos?.length" class="photo-grid">
-            <div
-              v-for="(photo, idx) in form.defectPhotos"
-              :key="photo.id || idx"
-              class="photo-item"
-            >
-              <img :src="photoUrl(photo)" :alt="`photo-${idx}`" @click="previewPhoto(idx)" />
-              <!-- 瑕疵类型标签 -->
-              <div class="photo-defect-tag" v-if="photo.defectType">
-                <el-tag
-                  v-for="t in (photo.defectType || '').split(',').filter(Boolean)"
-                  :key="t"
-                  size="small"
-                  type="danger"
-                  effect="dark"
-                >{{ t }}</el-tag>
-                <span v-if="photo.defectRemark" class="defect-remark">{{ photo.defectRemark }}</span>
-              </div>
-              <div class="photo-defect-tag empty" v-else>
-                <el-button link size="small" type="warning" @click="editDefectType(idx)">点此选瑕疵类型</el-button>
-              </div>
-              <div class="photo-delete" @click.stop="removePhoto(idx)">
-                <el-icon :size="14"><Close /></el-icon>
-              </div>
-            </div>
-          </div>
-          <div v-else class="photo-empty">
-            <el-icon :size="60" color="#c0c4cc"><Picture /></el-icon>
-            <div>踩脚踏板或点拍照上传瑕疵照片</div>
-            <div class="muted">每张照片需要选择瑕疵类型</div>
-          </div>
-
-          <!-- 大图预览 -->
-          <el-image-viewer
-            v-if="previewVisibleFlag"
-            :urlList="previewUrls"
-            :initial-index="previewIndex"
-            @close="previewVisibleFlag = false"
-          />
-        </div>
-      </div>
+      <ReceivePhotoStep ref="photoStepRef" v-show="currentStep === 3" :photos="form.defectPhotos" :pedal-enabled="pedalEnabled" :pedal-key-name="pedalKeyName" :uploading="photoUploading" :photo-url="photoUrl" :preview-visible="previewVisibleFlag" :preview-urls="previewUrls" :preview-index="previewIndex" @toggle-pedal="togglePedal" @capture="onPhotoCapture" @clear="clearPhotos" @preview="previewPhoto" @edit="editDefectType" @remove="removePhoto" @close-preview="previewVisibleFlag=false" />
 
       <!-- ===== Step 4: 收款 ===== -->
-      <div v-show="currentStep === 4" class="step-panel step-pay">
-        <div class="card-box summary-card">
-          <div class="card-title">
-            <el-icon :size="18"><Money /></el-icon>
-            <span>收款汇总</span>
-          </div>
-
-          <!-- 加急勾选 -->
-          <el-alert v-if="rewashSource" title="返洗订单默认免费，不扣会员余额、不重复计入营业额。" type="success" :closable="false" show-icon />
-          <div v-else class="urgent-toggle">
-            <el-checkbox
-              v-model="form.urgentFlag"
-              :true-value="1"
-              :false-value="0"
-              @change="recalc"
-            >
-              <el-icon style="vertical-align: middle"><AlarmClock /></el-icon>
-              加急订单（整体加价 20%）
-            </el-checkbox>
-          </div>
-
-          <div class="summary-block">
-            <div class="line"><span>衣物件数</span><b>{{ totals.count }} 件</b></div>
-            <div class="line"><span>原价合计</span><span>¥{{ fmt(totals.totalAmount) }}</span></div>
-            <div class="line discount" v-if="totals.discountAmount > 0">
-              <span>优惠（{{ totals.discountRate }}折）</span>
-              <span class="neg">-¥{{ fmt(totals.discountAmount) }}</span>
-            </div>
-            <div class="line"><span>折扣后金额</span><span>¥{{ fmt(totals.actualAmount) }}</span></div>
-            <div class="line urgent" v-if="form.urgentFlag === 1">
-              <span>加急加价（20%）</span>
-              <span class="pos">+¥{{ fmt(totals.urgentSurcharge) }}</span>
-            </div>
-            <div class="line highlight">
-              <span>洗衣应付</span>
-              <b class="big">¥{{ fmt(totals.payableAmount) }}</b>
-            </div>
-            <div class="line" v-if="form.newCardFlag === 1">
-              <span>办卡金额</span>
-              <b class="new-card">¥{{ fmt(totals.newCardAmount) }}</b>
-            </div>
-            <div class="line" v-if="form.rechargeFlag === 1">
-              <span>充值金额</span>
-              <b class="new-card">¥{{ fmt(totals.rechargeAmount) }}</b>
-            </div>
-            <div class="line total-line">
-              <span>本次应收</span>
-              <b class="huge">¥{{ fmt(totals.totalReceivable) }}</b>
-            </div>
-          </div>
-
-          <el-divider />
-
-          <div v-if="!rewashSource" class="payment-block">
-            <div class="block-title">支付方式</div>
-
-            <!-- 有会员卡：显示"使用会员卡余额支付"开关 -->
-            <div v-if="canUseCard" class="card-pay-toggle">
-              <el-checkbox v-model="form.useCardPay" size="large" @change="recalc">
-                使用会员卡余额支付（余额：¥{{ fmt(cardBalance) }}）
-              </el-checkbox>
-            </div>
-
-            <!-- 勾选了卡扣：显示卡扣明细 + 余额不足时的补差方式 -->
-            <div v-if="canUseCard && form.useCardPay" class="pay-options">
-              <div class="card-deduct-box">
-                <div class="line" v-if="form.newCardFlag === 1">
-                  <span>办卡充值</span>
-                  <b class="new-card">¥{{ fmt(totals.newCardAmount) }}</b>
-                </div>
-                <div class="line" v-else>
-                  <span>会员卡余额</span><b>¥{{ fmt(cardBalance) }}</b>
-                </div>
-                <div class="line" v-if="form.rechargeFlag === 1">
-                  <span>追加充值</span>
-                  <b class="new-card">¥{{ fmt(totals.rechargeAmount) }}</b>
-                </div>
-                <div class="line success">
-                  <span>卡扣金额</span>
-                  <b>-¥{{ fmt(totals.cardDeduct) }}</b>
-                </div>
-                <div v-if="totals.extraPayment > 0" class="line danger">
-                  <span>补差金额</span>
-                  <b>¥{{ fmt(totals.extraPayment) }}</b>
-                </div>
-                <div v-else class="line success">
-                  <span>补差金额</span>
-                  <b>¥0.00（余额充足）</b>
-                </div>
-                <div class="line balance-after">
-                  <span>支付后卡内余额</span>
-                  <b class="pos">¥{{ fmt(cardBalanceAfter) }}</b>
-                </div>
-                <div class="line danger total-pay">
-                  <span>本次需支付</span>
-                  <b>¥{{ fmt(totals.totalReceivable) }}</b>
-                </div>
-              </div>
-              <!-- 余额不足时选择补差方式 -->
-              <div v-if="totals.extraPayment > 0" class="extra-pay-row">
-                <span class="extra-label">补差方式：</span>
-                <el-radio-group v-model="form.extraMethod" @change="recalc">
-                  <el-radio-button label="CASH">现金</el-radio-button>
-                  <el-radio-button label="WECHAT">微信</el-radio-button>
-                  <el-radio-button label="ALIPAY">支付宝</el-radio-button>
-                </el-radio-group>
-              </div>
-            </div>
-
-            <!-- 未勾选卡扣 或 无卡：显示普通支付方式 -->
-            <div v-else class="pay-options">
-              <el-radio-group v-model="form.extraMethod" class="pay-radio" @change="recalc">
-                <el-radio-button label="CASH"><el-icon><Money /></el-icon> 现金</el-radio-button>
-                <el-radio-button label="WECHAT">微信</el-radio-button>
-                <el-radio-button label="ALIPAY">支付宝</el-radio-button>
-              </el-radio-group>
-              <div class="card-deduct-box no-card">
-                <div class="line danger"><span>应付金额</span><b>¥{{ fmt(totals.totalReceivable) }}</b></div>
-              </div>
-            </div>
-          </div>
-
-          <el-divider />
-
-          <div class="paid-block">
-            <el-form label-width="80px">
-              <el-form-item v-if="!rewashSource" label="实收金额">
-                <el-input-number
-                  v-model="form.totalPaid"
-                  :min="0" :precision="2" :step="10"
-                  size="large" controls-position="right" style="width: 100%"
-                  @change="() => { totalPaidManually = true }"
-                />
-              </el-form-item>
-              <el-form-item label="欠款" v-if="totals.debtAmount > 0">
-                <el-alert
-                  type="warning" show-icon :closable="false"
-                  :title="`本次实收少于应收，将记录欠款 ¥${fmt(totals.debtAmount)}`"
-                />
-              </el-form-item>
-              <el-form-item label="整单备注">
-                <el-input v-model="form.remark" type="textarea" :rows="2" maxlength="200" placeholder="整单备注/客户留言（可选）" />
-              </el-form-item>
-            </el-form>
-          </div>
-        </div>
-      </div>
-
+      <ReceivePaymentStep v-show="currentStep === 4" :form="form" :rewash-source="rewashSource" :totals="totals" :can-use-card="canUseCard" :card-balance="cardBalance" :card-balance-after="cardBalanceAfter" :format="fmt" @recalculate="recalc" @paid-manually="totalPaidManually = true" />
     </div>
-
     <!-- ============= 底部步骤导航 ============= -->
     <div class="step-nav">
       <el-button size="large" :icon="RefreshLeft" @click="resetAll">重置</el-button>
@@ -702,18 +168,6 @@
     <!-- ========== 打印预览（收衣凭证）========== -->
     <ReceiptPreview v-model="previewVisible" :data="previewData" @reset="resetAll" />
 
-    <el-dialog v-model="draftDialogVisible" title="本机挂单记录" width="720px">
-      <el-empty v-if="!drafts.length" description="暂无挂单" />
-      <div v-else class="draft-list">
-        <div v-for="draft in drafts" :key="draft.id" class="draft-row">
-          <div>
-            <div class="draft-name"><b>{{ draft.customer?.name || '未填写姓名' }}</b><span>{{ draft.customer?.phone || '未填写手机号' }}</span><el-tag v-if="isDraftExpired(draft)" type="danger" size="small">已过期</el-tag></div>
-            <p>{{ draft.form?.items?.length || 0 }} 件衣物 · 保存于 {{ formatDraftTime(draft.updatedAt) }}</p>
-          </div>
-          <div><el-button type="primary" link @click="restoreDraft(draft)">继续录入</el-button><el-button type="danger" link @click="deleteDraft(draft.id)">删除</el-button></div>
-        </div>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
@@ -721,14 +175,19 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  User, Search, CreditCard, Plus, Box, List, Delete,
-  Money, RefreshLeft, Check, AlarmClock, Camera, UploadFilled,
-  Picture, Close, ZoomIn, VideoCamera, ArrowRight
+  User, CreditCard, Box, Money, RefreshLeft, Check, Camera, ArrowRight
 } from '@element-plus/icons-vue'
 import { categoryApi, customerApi, memberCardApi, orderApi, photoApi } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import { localId, photoUrl as resolvePhotoUrl } from '@/utils'
+import { calculateReceive, isDraftExpired as draftExpired, memberPrice, pickupItems, rewashItems } from '@/utils/receive-calculation.mjs'
 import ReceiptPreview from './components/ReceiptPreview.vue'
+import ReceiveDraftManager from './components/ReceiveDraftManager.vue'
+import ReceiveCustomerStep from './components/ReceiveCustomerStep.vue'
+import ReceivePhotoStep from './components/ReceivePhotoStep.vue'
+import ReceiveItemsStep from './components/ReceiveItemsStep.vue'
+import ReceiveMemberStep from './components/ReceiveMemberStep.vue'
+import ReceivePaymentStep from './components/ReceivePaymentStep.vue'
 
 const authStore = useAuthStore()
 const DRAFT_TTL = 24 * 60 * 60 * 1000
@@ -847,8 +306,7 @@ const previewVisible = ref(false)
 const previewData = ref(null)
 
 // 拍照取证
-const cameraInputRef = ref(null)
-const fileInputRef = ref(null)
+const photoStepRef = ref(null)
 const previewVisibleFlag = ref(false)
 const previewIndex = ref(0)
 const previewUrls = ref([])
@@ -1235,10 +693,7 @@ function confirmDefectType() {
 
 // ============= 拍照取证 =============
 function triggerCamera() {
-  cameraInputRef.value?.click()
-}
-function triggerFileUpload() {
-  fileInputRef.value?.click()
+  photoStepRef.value?.openCamera()
 }
 
 function compressImageToBlob(file, maxWidth = 1024, maxHeight = 1024, quality = 0.8) {
@@ -1290,7 +745,6 @@ async function onPhotoCapture(e) {
     }
     ElMessage.success(`已添加 ${files.length} 张照片`)
   } catch (err) {
-    console.error('照片上传失败', err)
     ElMessage.error('照片上传失败')
   } finally {
     photoUploading.value = false
@@ -1306,7 +760,7 @@ function photoUrl(photo) {
 async function removePhoto(idx) {
   const photo = form.defectPhotos[idx]
   if (photo?.filename) {
-    try { await photoApi.delete(photo.filename) } catch (e) { console.warn('删除照片失败', e) }
+    try { await photoApi.delete(photo.filename) } catch { /* 请求层已记录，继续清理本机挂单 */ }
   }
   form.defectPhotos.splice(idx, 1)
 }
@@ -1350,73 +804,20 @@ function onPedalKeyDown(e) {
 }
 
 function computeMemberPrice(unitPrice, category) {
-  let rate = 10
-  let hasCard = false
-  if (form.newCardFlag === 1 && newCardType.value) {
-    rate = +newCardType.value.discountRate
-    hasCard = true
-  } else if (currentCard.value) {
-    rate = +currentCard.value.discountRate
-    hasCard = true
-  }
-  if (!hasCard) return round2(unitPrice)
-  if (!category || category.priceMode === 1) {
-    return round2(unitPrice * rate / 10)
-  }
-  if (rate === 8.8) return round2(category.memberPrice300 || unitPrice)
-  if (rate === 6.8) return round2(category.memberPrice500 || unitPrice)
-  return round2(unitPrice * rate / 10)
+  const card = form.newCardFlag === 1 && newCardType.value ? newCardType.value : currentCard.value
+  return memberPrice(unitPrice, category, card)
 }
 
 function recalc() {
-  const catMap = {}
-  allCategories.value.forEach(c => { catMap[c.id] = c })
-  let totalAmount = 0, actualAmount = 0, count = 0
-  form.items.forEach(it => {
-    if (rewashSource.value) {
-      it.unitPrice = 0
-      it.catalogPrice = 0
-    }
-    it.memberPrice = computeMemberPrice(it.unitPrice, catMap[it.categoryId])
-    it.subtotal = round2(it.memberPrice * it.quantity)
-    totalAmount = round2(totalAmount + it.unitPrice * it.quantity)
-    actualAmount = round2(actualAmount + it.subtotal)
-    count += it.quantity || 1
-  })
-
-  _totals.count = count
-  _totals.totalAmount = totalAmount
-  _totals.actualAmount = actualAmount
-  if (form.newCardFlag === 1 && newCardType.value) {
-    _totals.discountRate = +newCardType.value.discountRate
-  } else if (currentCard.value) {
-    _totals.discountRate = +currentCard.value.discountRate
-  } else {
-    _totals.discountRate = 10
-  }
-  _totals.discountAmount = round2(totalAmount - actualAmount)
-  _totals.urgentSurcharge = form.urgentFlag === 1 ? round2(actualAmount * 0.20) : 0
-  const payableAmount = round2(actualAmount + _totals.urgentSurcharge)
-  _totals.payableAmount = payableAmount
-  _totals.newCardAmount = form.newCardFlag === 1 && newCardType.value
-    ? +newCardType.value.amount : 0
-  _totals.rechargeAmount = rechargeAmount.value
-
-  const cardInflow = _totals.newCardAmount + _totals.rechargeAmount
-  if (canUseCard.value && form.useCardPay) {
-    _totals.cardDeduct = Math.min(cardBalance.value, payableAmount)
-    _totals.extraPayment = round2(payableAmount - _totals.cardDeduct)
-    _totals.totalReceivable = round2(cardInflow + _totals.extraPayment)
-  } else {
-    _totals.cardDeduct = 0
-    _totals.extraPayment = payableAmount
-    _totals.totalReceivable = round2(payableAmount + cardInflow)
-  }
-
-  if (!totalPaidManually.value) {
-    form.totalPaid = _totals.totalReceivable
-  }
-  _totals.debtAmount = Math.max(0, round2(_totals.totalReceivable - (form.totalPaid || 0)))
+  const card = form.newCardFlag === 1 && newCardType.value ? newCardType.value : currentCard.value
+  const result = calculateReceive({ items: form.items, categories: allCategories.value, card,
+    rewash: !!rewashSource.value, urgent: form.urgentFlag === 1,
+    newCardAmount: form.newCardFlag === 1 && newCardType.value ? +newCardType.value.amount : 0,
+    rechargeAmount: rechargeAmount.value, useCard: canUseCard.value && form.useCardPay,
+    cardBalance: cardBalance.value, totalPaid: totalPaidManually.value ? form.totalPaid : null })
+  form.items = result.items
+  Object.assign(_totals, result.totals)
+  form.totalPaid = result.totalPaid
 }
 
 const _totals = reactive({
@@ -1687,8 +1088,7 @@ async function deleteDraft(id) {
   ElMessage.success('挂单已删除')
 }
 
-function isDraftExpired(draft) { return Date.now() - Number(draft.updatedAt || 0) >= DRAFT_TTL }
-function formatDraftTime(value) { return value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—' }
+function isDraftExpired(draft) { return draftExpired(draft, Date.now(), DRAFT_TTL) }
 
 function applyPendingRewash() {
   try {
@@ -1704,7 +1104,7 @@ function applyPendingRewash() {
       address: pending.customer?.address || '',
       remark: ''
     })
-    form.items = pending.items.map(item => ({ ...item, itemTempId: localId() }))
+    form.items = rewashItems(pending.items, localId)
     form.paymentMethod = 'CASH'
     form.extraMethod = 'CASH'
     form.totalPaid = 0
@@ -1734,17 +1134,7 @@ async function applyPendingPickup() {
       remark: ''
     })
     await onSearchCustomer()
-    form.items = pending.items.map(item => {
-      const category = allCategories.value.find(value => Number(value.id) === Number(item.categoryId))
-      if (!category) throw new Error(`衣物类别已停用：${item.categoryName}`)
-      const unitPrice = Number(category.originalPrice || category.price || 0)
-      return {
-        itemTempId: localId(), categoryId: category.id, categoryGroup: category.categoryGroup,
-        categoryName: item.categoryName, customName: null, quantity: Number(item.quantity || 1),
-        unitPrice, catalogPrice: unitPrice, memberPrice: computeMemberPrice(unitPrice, category), subtotal: 0,
-        color: '', brand: '', size: '', defect: '', special: ''
-      }
-    })
+    form.items = pickupItems(pending.items, allCategories.value, computeMemberPrice, localId)
     form.remark = pending.remark ? `上门取衣：${pending.remark}` : `上门取衣预约 ${pending.pickupNo}`
     currentStep.value = 2
     maxReachedStep.value = 4
@@ -1782,7 +1172,6 @@ onMounted(async () => {
       } else recalc()
     }
   } catch (e) {
-    console.error(e)
     ElMessage.warning('加载类别/卡类型失败，请检查后端')
   }
 })
@@ -1808,27 +1197,6 @@ watch([custForm, form, currentStep, maxReachedStep], () => {
   padding: 12px;
   overflow: hidden;
 }
-.draft-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
-  background: #fff;
-  border: 1px solid #dfe6ee;
-  border-radius: 12px;
-}
-.draft-toolbar b { display: block; color: #1f2d3d; }
-.draft-toolbar span { display: block; margin-top: 3px; color: #526579; font-size: 13px; }
-.draft-actions { display: flex; gap: 8px; flex: none; }
-.draft-list { display: grid; gap: 10px; }
-.draft-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid #dfe6ee; border-radius: 12px; }
-.draft-name { display: flex; align-items: center; gap: 10px; }
-.draft-name span { color: #526579; font-variant-numeric: tabular-nums; }
-.draft-row p { margin: 6px 0 0; color: #607286; font-size: 13px; }
-@media (max-width: 760px) { .draft-toolbar, .draft-row { align-items: stretch; flex-direction: column; } .draft-actions { width: 100%; } }
-
 /* 步骤条 */
 .steps-bar {
   background: #fff;
@@ -1847,242 +1215,6 @@ watch([custForm, form, currentStep, maxReachedStep], () => {
   overflow-y: auto;
   min-height: 0;
 }
-.step-panel {
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-.card-box {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  padding: 20px 24px;
-  margin-bottom: 12px;
-}
-.card-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 16px;
-  color: #303133;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #ebeef5;
-}
-.ml-auto { margin-left: auto; }
-
-.phone-item :deep(.el-input-group) { flex-wrap: nowrap; }
-
-.customer-stats {
-  margin-top: 8px;
-  font-size: 14px;
-  color: #606266;
-  background: #f5f7fa;
-  border-radius: 4px;
-  padding: 10px 12px;
-}
-.customer-stats b { color: #409EFF; }
-.divider { margin: 0 10px; color: #dcdfe6; }
-
-/* 会员卡 */
-.mc-box {
-  background: linear-gradient(135deg,#fa8c16 0%,#f5222d 100%);
-  color: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 12px;
-}
-.mc-header { display: flex; justify-content: space-between; }
-.mc-no { font-family: monospace; letter-spacing: 1px; font-size: 16px; font-weight: 700; }
-.mc-type { margin-top: 6px; display: flex; align-items: center; gap: 8px; }
-.mc-rate { font-size: 12px; opacity: 0.9; }
-.mc-balance { text-align: right; }
-.mc-balance .label { font-size: 12px; opacity: 0.85; }
-.mc-balance .value { font-size: 24px; font-weight: 700; margin-top: 2px; }
-.mc-stats { margin-top: 12px; font-size: 13px; opacity: 0.92; display: flex; justify-content: space-between; }
-.mc-actions { margin-top: 12px; display: flex; justify-content: flex-end; }
-.mc-actions .el-button { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); color: #fff; }
-.mc-actions .el-button.el-button--text { background: transparent; border: none; }
-
-.new-card-toggle {
-  margin-top: 12px;
-  background: #f5f7fa;
-  border-radius: 6px;
-  padding: 12px 14px;
-}
-.new-card-options { margin-top: 12px; }
-.new-card-options .el-form-item { margin-bottom: 10px; }
-
-/* 衣物类别 */
-.cat-tabs { margin-top: -4px; }
-.cat-tabs :deep(.el-tabs__header) { margin-bottom: 12px; }
-.cat-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  min-height: 160px;
-}
-.cat-cell {
-  border: 1px solid #ebeef5;
-  border-radius: 6px;
-  padding: 12px 8px;
-  cursor: pointer;
-  transition: all .15s;
-  background: #fff;
-  text-align: center;
-}
-.cat-cell:hover { border-color: #409EFF; background: #ecf5ff; transform: translateY(-1px); }
-.cat-cell.active { border-color: #409EFF; background: #409EFF; color: #fff; }
-.cat-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-.cat-price { font-size: 12px; color: #f56c6c; line-height: 1.5; }
-.cat-cell.active .cat-price { color: #fff; }
-.cat-price .orig { text-decoration: line-through; opacity: 0.7; margin-right: 4px; }
-.cat-price .mp300, .cat-price .mp500 { display: block; font-size: 11px; }
-.empty-grid { grid-column: span 4; display: flex; justify-content: center; }
-
-.count-badge { margin-left: auto; color: #909399; font-size: 13px; }
-.items-table :deep(.el-table__cell) { padding: 6px 8px; }
-.cat-name { margin-left: 6px; font-size: 13px; }
-.member-price { color: #e6a23c; font-weight: 600; }
-.subtotal { color: #409EFF; }
-.muted { color: #c0c4cc; font-size: 12px; }
-.item-desc { display: flex; flex-direction: column; gap: 4px; }
-.item-desc .el-tag { margin-right: 4px; }
-
-/* 汇总 */
-.urgent-toggle {
-  background: #fef0f0;
-  border: 1px solid #fde2e2;
-  border-radius: 6px;
-  padding: 12px 14px;
-  margin-bottom: 12px;
-}
-.urgent-toggle :deep(.el-checkbox__label) {
-  font-size: 15px;
-  font-weight: 600;
-  color: #f56c6c;
-}
-.urgent-toggle :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background-color: #f56c6c;
-  border-color: #f56c6c;
-}
-
-.summary-block .line {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 2px; font-size: 14px; color: #606266;
-}
-.summary-block .line.big b { font-size: 20px; }
-.summary-block .line.highlight { padding: 12px 4px; border-top: 1px dashed #ebeef5; border-bottom: 1px dashed #ebeef5; margin: 8px 0; }
-.summary-block .line.discount .neg { color: #67c23a; }
-.summary-block .line.urgent .pos { color: #f56c6c; font-weight: 600; }
-.summary-block .line.total-line { padding: 14px 4px; background: linear-gradient(90deg,#ecf5ff 0%,#e1f3d8 100%); border-radius: 6px; margin-top: 8px; }
-.summary-block .huge { color: #f56c6c; font-size: 26px; font-weight: 700; }
-.summary-block .new-card { color: #e6a23c; }
-
-.block-title { font-weight: 600; color: #303133; margin: 4px 0 12px; font-size: 15px; }
-.pay-radio { display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 12px; }
-.card-deduct-box { background: #fdf6ec; border: 1px solid #faecd8; border-radius: 6px; padding: 12px 14px; margin-top: 8px; }
-.card-deduct-box .line { padding: 5px 0; }
-.card-deduct-box .line.success b { color: #67c23a; }
-.card-deduct-box .line.danger b { color: #f56c6c; font-size: 16px; }
-.card-deduct-box .line.total-pay { border-top: 2px solid #e6a23c; margin-top: 8px; padding-top: 10px; font-weight: 600; font-size: 16px; }
-.card-deduct-box .line.total-pay b { color: #f56c6c; font-size: 18px; }
-.card-deduct-box .line.balance-after { background: #f0f9eb; border-radius: 4px; padding: 8px 10px; margin: 5px 0; }
-.card-deduct-box .line.balance-after b { color: #67c23a; font-size: 16px; font-weight: 600; }
-.card-deduct-box .new-card { color: #e6a23c; }
-.card-pay-toggle { margin-bottom: 12px; }
-.card-pay-toggle .el-checkbox { font-size: 15px; }
-.card-pay-toggle .el-checkbox__label { font-weight: 600; }
-.extra-pay-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
-.extra-pay-row .extra-label { font-size: 14px; color: #606266; white-space: nowrap; }
-
-.paid-block :deep(.el-input-number) { width: 100%; }
-
-/* 瑕疵拍照 */
-.photo-card .photo-count { margin-left: auto; }
-.pedal-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  background: #f4f4f5;
-  color: #909399;
-  margin-bottom: 12px;
-}
-.pedal-status.active { background: #e8f4ff; color: #409eff; }
-.pedal-status .el-button { margin-left: auto; }
-.photo-actions {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-}
-.photo-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-.photo-item {
-  position: relative;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #ebeef5;
-  background: #fff;
-}
-.photo-item img {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  display: block;
-  cursor: pointer;
-}
-.photo-defect-tag {
-  padding: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
-  background: #f5f7fa;
-  min-height: 40px;
-}
-.photo-defect-tag.empty { justify-content: center; }
-.defect-remark {
-  font-size: 12px;
-  color: #909399;
-  width: 100%;
-}
-.photo-delete {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 24px;
-  height: 24px;
-  background: rgba(0,0,0,0.55);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity .15s;
-}
-.photo-item:hover .photo-delete { opacity: 1; }
-.photo-delete:hover { background: #f56c6c; }
-.photo-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 0;
-  color: #909399;
-  font-size: 15px;
-  gap: 10px;
-}
-
 /* 底部导航 */
 .step-nav {
   background: #fff;

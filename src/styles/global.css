@@ -114,3 +114,42 @@ a:hover {
   justify-content: space-between;
   align-items: center;
 }
+.scanner-box {
+  padding: 10px;
+  border: 2px solid #dce6ef;
+  border-radius: 10px;
+}
+
+.scanner-box.is-focused {
+  border-color: #2563eb;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, .14);
+}
+
+.scanner-box > span {
+  display: block;
+  margin-top: 7px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.scanner-box.is-focused > span {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.pickup-page .search-panel.is-focused {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, .14);
+}
+
+.pickup-page .focus-state {
+  min-width: 80px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.pickup-page .is-focused .focus-state {
+  color: #1d4ed8;
+  font-weight: 700;
+}

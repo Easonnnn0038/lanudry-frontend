@@ -9,7 +9,7 @@
     <section v-if="tab==='SHELF'||tab==='MOVE'" class="work-area">
       <div class="scan-side">
         <h3>{{ tab==='SHELF'?'扫描衣物并分配位置':'扫描已上架衣物并更换位置' }}</h3>
-        <el-input ref="barcodeInput" v-model.trim="barcode" size="large" placeholder="扫描或输入完整衣物码" clearable @keyup.enter="allocate"/>
+        <div class="scanner-box" :class="{ 'is-focused': scanFocused }"><el-input ref="barcodeInput" v-model.trim="barcode" size="large" placeholder="扫描或输入完整衣物码" clearable @focus="onScanFocus" @blur="onScanBlur" @keyup.enter="allocate"/><span>{{ scanFocused ? '扫码已就绪' : '点击输入框恢复扫码' }}</span></div>
         <div class="manual"><el-input-number v-model="preferred" :min="1" :max="overview?.maxShelfNo||9999" controls-position="right" placeholder="手动指定（选填）"/><span>留空时自动联排分配</span></div>
         <el-button type="primary" size="large" :disabled="!barcode||!!allocation" :loading="busy" @click="allocate">分配货架号</el-button>
         <p class="rule">只有完成回店签收的衣物可以上架。系统给号后必须确认，5分钟未确认会自动释放。</p>
@@ -32,21 +32,23 @@
   </div>
 </template>
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { shelfApi } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import OrderSourceTag from '@/components/OrderSourceTag.vue'
+import { useScannerFocus } from '@/composables/useScannerFocus'
 const auth=useAuthStore(),isAdmin=computed(()=>auth.role==='ADMIN'),tab=ref('SHELF'),overview=ref(null),barcode=ref(''),preferred=ref(),allocation=ref(null),busy=ref(false),barcodeInput=ref(null),query=ref(''),results=ref([]),newMax=ref(1700),manageNo=ref(1)
+const {focused:scanFocused,focus:focusScanner,onFocus:onScanFocus,onBlur:onScanBlur}=useScannerFocus(barcodeInput,()=>['SHELF','MOVE'].includes(tab.value)&&!busy.value&&!allocation.value)
 const time=v=>v?String(v).replace('T',' ').slice(0,19):'—'
 async function refreshOverview(){overview.value=await shelfApi.overview();newMax.value=overview.value.maxShelfNo}
-function resetWork(){if(allocation.value)cancelAllocation();barcode.value='';preferred.value=undefined;nextTick(()=>barcodeInput.value?.focus())}
+function resetWork(){if(allocation.value)cancelAllocation();barcode.value='';preferred.value=undefined;focusScanner()}
 async function allocate(){if(!barcode.value||allocation.value)return;busy.value=true;try{allocation.value=await shelfApi.allocate({barcode:barcode.value,preferredShelfNo:preferred.value||null,mode:tab.value})}finally{busy.value=false}}
-async function confirm(){busy.value=true;try{await shelfApi.confirm(barcode.value,allocation.value.shelfNo);ElMessage.success(`${allocation.value.shelfNo}号位置已确认`);allocation.value=null;barcode.value='';preferred.value=undefined;await refreshOverview();nextTick(()=>barcodeInput.value?.focus())}finally{busy.value=false}}
-async function cancelAllocation(){if(allocation.value)await shelfApi.cancel(barcode.value);allocation.value=null;nextTick(()=>barcodeInput.value?.focus())}
+async function confirm(){busy.value=true;try{await shelfApi.confirm(barcode.value,allocation.value.shelfNo);ElMessage.success(`${allocation.value.shelfNo}号位置已确认`);allocation.value=null;barcode.value='';preferred.value=undefined;await refreshOverview()}finally{busy.value=false;focusScanner()}}
+async function cancelAllocation(){if(allocation.value)await shelfApi.cancel(barcode.value);allocation.value=null;focusScanner()}
 async function search(){results.value=await shelfApi.search(query.value)}
 async function resize(){await ElMessageBox.confirm(`确认将本店货架容量调整为 ${newMax.value}？`,'调整货架容量',{type:'warning'});await shelfApi.resize(newMax.value);ElMessage.success('货架容量已更新');await refreshOverview()}
 async function setDisabled(disabled){const action=disabled?'停用':'恢复';await ElMessageBox.confirm(`确认${action} ${manageNo.value} 号位置？`,`${action}货架位置`,{type:'warning'});await shelfApi.disable(manageNo.value,disabled);ElMessage.success(`${manageNo.value}号位置已${action}`);await refreshOverview()}
-onMounted(async()=>{await refreshOverview();nextTick(()=>barcodeInput.value?.focus())})
+onMounted(refreshOverview)
 </script>
 <style scoped>.shelf-page{background:#fff;padding:24px;border-radius:12px;color:#263445}header{display:flex;justify-content:space-between;align-items:flex-start}h2{margin:0 0 7px}header p,.rule,.settings-area p{margin:0;color:#65758a}.capacity-line{display:flex;align-items:baseline;gap:8px;margin:22px 0 16px;padding:13px 0;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;color:#64748b}.capacity-line b{font-size:28px;color:#207348}.capacity-line i{width:1px;height:18px;background:#d8e0e8;margin:0 10px}.work-area{display:grid;grid-template-columns:minmax(350px,1fr) minmax(330px,.8fr);gap:28px;padding-top:12px}.scan-side{max-width:560px}.scan-side h3,.settings-area h3{margin:0 0 16px}.manual{display:flex;align-items:center;gap:12px;margin:14px 0}.manual span{color:#718095;font-size:13px}.rule{margin-top:18px;line-height:1.7}.allocation-side{min-height:310px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f5f7f9;border-radius:14px;color:#778599}.allocation-side.active{background:#eef8f2;color:#24583b}.allocation-side>span{font-size:17px}.allocation-side>strong:not(.waiting){font-size:108px;line-height:1;margin:10px 0 0;font-variant-numeric:tabular-nums;letter-spacing:-.03em}.allocation-side>b{font-size:22px}.allocation-side p{margin:16px 0;color:inherit}.waiting{font-size:72px;color:#b5c0ca}.actions{display:flex;gap:12px}.query-row{display:flex;gap:12px;max-width:600px;margin:18px 0}.settings-area{display:grid;grid-template-columns:1fr 1fr;gap:42px;padding-top:18px}.setting-row{display:flex;gap:10px;margin-top:18px}@media(max-width:850px){.work-area,.settings-area{grid-template-columns:1fr}.allocation-side>strong:not(.waiting){font-size:82px}header{gap:15px}}</style>

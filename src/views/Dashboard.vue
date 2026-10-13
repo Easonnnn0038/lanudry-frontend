@@ -198,7 +198,6 @@ async function loadStats() {
       { label: '本月营收', value: fmtRevenue(data?.monthRevenue),            color: '#ef4444' }
     ]
   } catch (e) {
-    console.warn('加载首页统计失败', e)
     ElMessage.error('加载统计数据失败')
   } finally {
     statsLoading.value = false
@@ -294,7 +293,6 @@ async function loadRecent() {
       amount: fmtAmount(o.amount)
     }))
   } catch (e) {
-    console.warn('加载最近订单失败', e)
     ElMessage.error('加载最近订单失败')
   } finally {
     recentLoading.value = false

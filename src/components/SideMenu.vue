@@ -22,14 +22,20 @@
         <span class="menu-label">{{ item.title }}</span>
       </div>
     </div>
+    <div class="app-meta">
+      <span>门店端 v{{ appVersion }}</span>
+      <button type="button" :disabled="checking" @click="checkUpdate">{{ checking ? '检查中…' : '检查更新' }}</button>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { usePermissionStore } from '@/stores/permission'
 import * as Icons from '@element-plus/icons-vue'
 import brandLogo from '@/assets/brand-logo.png'
+import { compareVersions } from '@/utils/version.mjs'
 
 const props = defineProps({
   activeMenu: {
@@ -41,6 +47,33 @@ const props = defineProps({
 const emit = defineEmits(['select'])
 
 const permissionStore = usePermissionStore()
+const appVersion = ref(__APP_VERSION__)
+const checking = ref(false)
+
+onMounted(async () => {
+  try { appVersion.value = await window.electronAPI?.getVersion?.() || __APP_VERSION__ }
+  catch { appVersion.value = __APP_VERSION__ }
+})
+
+async function checkUpdate() {
+  checking.value = true
+  try {
+    const response = await fetch(import.meta.env.VITE_UPDATE_MANIFEST_URL || '/desktop-update.json', { cache: 'no-store' })
+    if (!response.ok) throw new Error('更新服务暂不可用')
+    const latest = await response.json()
+    if (compareVersions(latest.version, appVersion.value) <= 0) return ElMessage.success('当前已是最新版本')
+    await ElMessageBox.confirm(`发现新版本 v${latest.version}${latest.notes ? `\n${latest.notes}` : ''}`, '可用更新', {
+      confirmButtonText: '前往下载', cancelButtonText: '稍后再说', type: 'success'
+    })
+    if (!latest.url) throw new Error('更新下载地址未配置')
+    if (window.electronAPI?.openExternal) await window.electronAPI.openExternal(latest.url)
+    else window.open(latest.url, '_blank', 'noopener')
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.warning(error?.message || '暂时无法检查更新')
+  } finally {
+    checking.value = false
+  }
+}
 
 // 图标解析：支持字符串名称或组件对象
 function resolveIcon(icon) {
@@ -160,4 +193,30 @@ function handleSelect(index) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.app-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  color: #64748b;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-meta button {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.app-meta button:hover { background: #eff6ff; }
+.app-meta button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+.app-meta button:disabled { color: #94a3b8; cursor: wait; }
 </style>

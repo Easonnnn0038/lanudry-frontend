@@ -66,7 +66,6 @@ router.beforeEach(async (to, from, next) => {
         next({ path: '/login' })
         return
       }
-      console.warn('[guard] getUserInfo 校验失败，但非 401 错误，保留登录态继续进入：', err?.message || err)
     }
   }
 

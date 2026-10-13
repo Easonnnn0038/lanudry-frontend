@@ -5,10 +5,11 @@
       <el-button @click="loadReady">刷新待取订单</el-button>
     </header>
 
-    <section class="search-panel">
+    <section class="search-panel" :class="{ 'is-focused': scanFocused }">
       <el-input ref="identifierInput" v-model.trim="identifier" size="large" maxlength="11"
-        placeholder="手机号 / 四位取衣码" clearable autofocus @input="clearResult" @keyup.enter="lookup" />
+        placeholder="手机号 / 四位取衣码" clearable autofocus @focus="onScanFocus" @blur="onScanBlur" @input="clearResult" @keyup.enter="lookup" />
       <el-button type="primary" size="large" :loading="loading" :disabled="!validIdentifier" @click="lookup">查询待取衣物</el-button>
+      <span class="focus-state">{{ scanFocused ? '输入已就绪' : '点击输入框继续' }}</span>
     </section>
 
     <section v-if="result" class="pickup-panel">
@@ -47,12 +48,14 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { pickupApi } from '@/api'
 import OrderSourceTag from '@/components/OrderSourceTag.vue'
+import { useScannerFocus } from '@/composables/useScannerFocus'
 
 const identifier=ref(''),result=ref(null),selected=ref([]),ready=ref([]),loading=ref(false),busy=ref(false),lastPickup=ref(null),identifierInput=ref()
+const {focused:scanFocused,focus:focusScanner,onFocus:onScanFocus,onBlur:onScanBlur}=useScannerFocus(identifierInput,()=>!loading.value&&!busy.value)
 const validIdentifier=computed(()=>/^1\d{10}$/.test(identifier.value)||/^\d{4}$/.test(identifier.value))
 const allIds=computed(()=>result.value?.orders.flatMap(order=>order.items.map(item=>item.id))||[])
 const allSelected=computed(()=>allIds.value.length>0&&selected.value.length===allIds.value.length)
@@ -62,9 +65,9 @@ async function loadReady(){ready.value=await pickupApi.ready()}
 function clearResult(){result.value=null;selected.value=[]}
 function toggleAll(value){selected.value=value?[...allIds.value]:[]}
 async function lookup(){if(!validIdentifier.value)return ElMessage.warning('请输入完整手机号或四位取衣码');loading.value=true;lastPickup.value=null;clearResult();try{result.value=await pickupApi.lookup(identifier.value);selected.value=[...allIds.value]}finally{loading.value=false}}
-async function completePickup(){if(!selected.value.length)return;busy.value=true;try{lastPickup.value=await pickupApi.close(identifier.value,selected.value);ElMessage.success(`已完成 ${lastPickup.value.pickedCount} 件衣物取件`);identifier.value='';clearResult();await loadReady()}finally{busy.value=false;await nextTick();identifierInput.value?.focus()}}
+async function completePickup(){if(!selected.value.length)return;busy.value=true;try{lastPickup.value=await pickupApi.close(identifier.value,selected.value);ElMessage.success(`已完成 ${lastPickup.value.pickedCount} 件衣物取件`);identifier.value='';clearResult();await loadReady()}finally{busy.value=false;await focusScanner()}}
 
-onMounted(async()=>{try{await pickupApi.prepareLegacy();await loadReady()}catch(error){console.error('加载取衣订单失败',error)}})
+onMounted(async()=>{try{await pickupApi.prepareLegacy();await loadReady()}catch{/* 请求层已统一提示并上报 */}})
 </script>
 
 <style scoped>

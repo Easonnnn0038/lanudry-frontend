@@ -122,7 +122,6 @@ async function handleLogin() {
           ElMessage.success('登录成功')
           router.push('/main')
         } catch (error) {
-          console.error('登录失败:', error)
           const msg =
             error?.response?.data?.message ||
             error?.data?.message ||
@@ -135,7 +134,6 @@ async function handleLogin() {
       }
     })
   } catch (error) {
-    console.error('表单验证失败:', error)
   }
 }
 </script>

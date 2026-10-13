@@ -21,6 +21,7 @@ const allMenus = [
       { index: 'store-error', title: '错误回店', icon: 'Warning', roles: ['ADMIN'] },
       { index: 'store-extra', title: '补收附件', icon: 'Plus' },
       { index: 'category-manage', title: '衣物定价', icon: 'PriceTag', roles: ['ADMIN'] }
+      ,{ index: 'deal-manage', title: '团购套餐', icon: 'Tickets', roles: ['ADMIN'] }
     ]
   },
   {

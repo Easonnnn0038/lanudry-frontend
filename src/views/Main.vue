@@ -37,6 +37,7 @@
         <StoreSupplement v-else-if="activeMenu === 'store-extra'" />
 
         <CategoryManage v-else-if="activeMenu === 'category-manage'" />
+        <DealManage v-else-if="activeMenu === 'deal-manage'" />
 
         <StoreShelf v-else-if="activeMenu === 'store-shelf'" />
 
@@ -102,6 +103,7 @@ import StoreQuery from '@/views/StoreQuery.vue'
 import StoreError from '@/views/StoreError.vue'
 import StoreSupplement from '@/views/StoreSupplement.vue'
 import CategoryManage from '@/views/CategoryManage.vue'
+import DealManage from '@/views/DealManage.vue'
 import StoreShelf from '@/views/StoreShelf.vue'
 import StoreStats from '@/views/StoreStats.vue'
 import MaintenanceCenter from '@/views/MaintenanceCenter.vue'
