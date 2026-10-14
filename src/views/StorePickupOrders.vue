@@ -1,8 +1,8 @@
 <template>
   <section class="page">
     <header>
-      <div><h2>上门取衣单</h2><p>顾客提交预约，门店取回后导入收衣页面统一验衣和结算。</p></div>
-      <div class="actions"><el-select v-model="filter" clearable placeholder="全部状态" @change="load"><el-option v-for="(label,key) in labels" :key="key" :label="label" :value="key" /></el-select><el-button @click="load">刷新</el-button></div>
+      <div><h2>上门取衣单</h2><p>一键接单处理本门店全部未过期的待接预约，不受筛选影响；每天 7:00 也会自动接单。取回后仍需逐单验衣、结算。</p></div>
+      <div class="actions"><el-select v-model="filter" clearable placeholder="全部状态" @change="load"><el-option v-for="(label,key) in labels" :key="key" :label="label" :value="key" /></el-select><el-button type="primary" :loading="confirming" :disabled="loading" @click="confirmAll">一键接单</el-button><el-button @click="load">刷新</el-button></div>
     </header>
     <el-table :data="rows" border stripe v-loading="loading" empty-text="暂无上门取衣单">
       <el-table-column prop="pickupNo" label="预约单号" min-width="180" />
@@ -43,15 +43,16 @@ import { ElMessage } from 'element-plus'
 import { pickupOrderApi } from '@/api'
 
 const labels={SUBMITTED:'待接单',PENDING_PAYMENT:'待付款',PAID:'待接单',CONFIRMED:'待取衣',PICKED_UP:'待导入收衣',INSPECTED:'已验衣',CONVERTED:'已转正式单',CANCELLED:'已取消'}
-const rows=ref([]),filter=ref(''),loading=ref(false),visible=ref(false),detail=ref(null),busyId=ref(null)
+const rows=ref([]),filter=ref(''),loading=ref(false),visible=ref(false),detail=ref(null),busyId=ref(null),confirming=ref(false)
 const money=v=>Number(v||0).toFixed(2)
 async function load(){loading.value=true;try{rows.value=await pickupOrderApi.list(filter.value)}finally{loading.value=false}}
 async function open(row){detail.value=await pickupOrderApi.detail(row.id);visible.value=true}
 async function advance(row,action){if(action==='confirm')await pickupOrderApi.confirm(row.id);else await pickupOrderApi.pickedUp(row.id);ElMessage.success(action==='confirm'?'已接单':'已取回门店');await load()}
+async function confirmAll(){confirming.value=true;try{const result=await pickupOrderApi.confirmEligible();const count=result.confirmed||0;ElMessage[count?'success':'info'](count?`已接收 ${count} 单；过期、待付款和已取消的预约未处理`:'没有符合条件的待接预约');await load()}finally{confirming.value=false}}
 async function importToReceive(row){busyId.value=row.id;try{const source=await pickupOrderApi.detail(row.id);localStorage.setItem('laundry_pickup_pending_v1',JSON.stringify({id:source.id,pickupNo:source.pickup_no,customer:{name:source.contact_name,phone:source.customer_phone,address:source.pickup_address||''},remark:source.remark||'',items:source.items}));window.dispatchEvent(new CustomEvent('navigate-menu',{detail:'store-receive'}))}finally{busyId.value=null}}
 onMounted(load)
 </script>
 
 <style scoped>
-.page{max-width:1500px;margin:auto}header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}h2{margin:0 0 8px}p{margin:0;color:#526579}.actions{display:flex;gap:10px}.actions .el-select{width:150px}.items{margin-top:20px}.order-no{font-variant-numeric:tabular-nums;color:#334155}
+.page{max-width:1500px;margin:auto}header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}h2{margin:0 0 8px}p{margin:0;color:#526579}.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0}.actions .el-select{width:150px}.items{margin-top:20px}.order-no{font-variant-numeric:tabular-nums;color:#334155}@media(max-width:800px){header{flex-direction:column}.actions{justify-content:flex-start}}
 </style>

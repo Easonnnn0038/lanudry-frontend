@@ -77,6 +77,7 @@ export const pickupOrderApi = {
   list: (status) => request.get('/pickup-orders', { params: { status: status || undefined } }),
   detail: (id) => request.get(`/pickup-orders/${id}`),
   confirm: (id) => request.post(`/pickup-orders/${id}/confirm`),
+  confirmEligible: () => request.post('/pickup-orders/confirm-eligible'),
   pickedUp: (id) => request.post(`/pickup-orders/${id}/picked-up`)
 }
 
