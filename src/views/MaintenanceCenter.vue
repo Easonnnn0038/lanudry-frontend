@@ -20,15 +20,32 @@
         <div class="filters"><el-input v-model.trim="auditFilter.keyword" placeholder="订单号或操作员" clearable/><el-date-picker v-model="auditFilter.range" type="daterange" value-format="YYYY-MM-DD" start-placeholder="开始日期" end-placeholder="结束日期"/><el-button type="primary" @click="loadAudit">查询</el-button></div>
         <el-table :data="audits" border stripe v-loading="loading" empty-text="暂无操作记录"><el-table-column prop="operateTime" label="时间" min-width="165"/><el-table-column prop="orderNo" label="订单号" min-width="165"/><el-table-column prop="operatorName" label="操作员" width="110"/><el-table-column label="操作类型" width="120"><template #default="{row}">{{ operateName(row.operateType) }}</template></el-table-column><el-table-column prop="description" label="操作内容" min-width="260" show-overflow-tooltip/><el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip/></el-table>
       </el-tab-pane>
+      <el-tab-pane label="资料删除申请" name="deletion">
+        <p class="deletion-help">先核验身份并注销账户，再按每笔订单完结日起半年人工清理联系方式和上门地址。欠款、未完结服务及有余额会员卡须先处理；收款与会计记录不在这里删除。</p>
+        <el-table :data="deletionRequests" border stripe v-loading="loading" empty-text="暂无删除申请">
+          <el-table-column prop="requestTime" label="申请时间" min-width="165"/><el-table-column label="绑定手机号" min-width="130"><template #default="{row}">{{ row.phone||'已清理' }}</template></el-table-column>
+          <el-table-column label="处理进度" min-width="190"><template #default="{row}"><el-tag :type="row.status==='PENDING'?'warning':row.status==='COMPLETED'?'success':'info'">{{ deletionStatus(row.status) }}</el-tag></template></el-table-column>
+          <el-table-column label="下一笔复核日" min-width="165"><template #default="{row}">{{ reviewAt(row) }}</template></el-table-column>
+          <el-table-column prop="reviewedBy" label="核验人" min-width="100"/><el-table-column prop="reviewNote" label="处理说明" min-width="220" show-overflow-tooltip/>
+          <el-table-column label="操作" min-width="180"><template #default="{row}"><el-button v-if="row.status==='PENDING'" link type="primary" @click="openDeletionReview(row)">核验并注销账户</el-button><el-button v-else-if="row.status==='ACCOUNT_CLOSED'" link type="primary" :loading="cleanupSavingId===row.id" @click="clearDue(row)">清理到期资料</el-button><span v-else>—</span></template></el-table-column>
+        </el-table>
+      </el-tab-pane>
     </el-tabs>
+    <el-dialog v-model="deletionDialog" title="核验删除申请" width="min(520px, 92vw)">
+      <p class="dialog-message">申请手机号：{{ selectedDeletion?.phone || '未绑定' }}。此操作只注销账户及其独享地址，不会删除订单、收款或会计记录。</p>
+      <el-checkbox v-model="identityVerified">我已线下核验申请人身份</el-checkbox>
+      <el-input v-model.trim="deletionNote" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="填写核验方式和处理说明，请勿填写顾客姓名、手机号或地址"/>
+      <template #footer><el-button @click="deletionDialog=false">取消</el-button><el-button type="primary" :loading="deletionSaving" :disabled="!identityVerified || !deletionNote" @click="submitDeletionReview">确认处理</el-button></template>
+    </el-dialog>
   </div>
 </template>
 <script setup>
 import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue'
-import { ElButton, ElDatePicker, ElDialog, ElInput, ElMessage, ElOption, ElSelect, ElTable, ElTableColumn, ElTag } from 'element-plus'
+import { ElButton, ElCheckbox, ElDatePicker, ElDialog, ElInput, ElMessage, ElMessageBox, ElOption, ElSelect, ElTable, ElTableColumn, ElTag } from 'element-plus'
 import { maintenanceApi } from '@/api'
 
 const tab=ref('status'),health=ref(null),events=ref([]),audits=ref([]),messages=ref([]),messageStatus=ref(''),loading=ref(false),lastEventFilter=ref({})
+const deletionRequests=ref([]),deletionDialog=ref(false),selectedDeletion=ref(null),identityVerified=ref(false),deletionNote=ref(''),deletionSaving=ref(false),cleanupSavingId=ref(null)
 const auditFilter=reactive({keyword:'',range:[]})
 const services=computed(()=>health.value?[health.value.backend,health.value.database,health.value.factory,health.value.rabbitmq,health.value.redis].filter(Boolean):[])
 const messageStatusNames={PENDING:'待投递',PUBLISHING:'投递中',RETRY:'等待重试',SENT:'已投递',DEAD:'投递失败'}
@@ -36,16 +53,22 @@ const consumeStatusNames={PROCESSING:'处理中',SUCCESS:'成功',DEAD:'消费�
 const messageTag=s=>({SENT:'success',SUCCESS:'success',PENDING:'info',PUBLISHING:'warning',PROCESSING:'warning',RETRY:'warning',DEAD:'danger'}[s]||'info')
 const stateName=s=>({OK:'正常',ERROR:'异常',UNCONFIGURED:'未配置'})[s]||s
 const time=v=>v?String(v).replace('T',' ').slice(0,19):'—'
+const reviewAt=row=>row.status==='COMPLETED'?'已完成':[row.formalReviewAt,row.pickupReviewAt].filter(Boolean).map(String).sort()[0]?.slice(0,10)||'无待复核订单'
+const deletionStatus=status=>({PENDING:'待核验',ACCOUNT_CLOSED:'账户已注销，资料待清理',COMPLETED:'到期资料已清理'})[status]||status
 const uptime=s=>{const n=Number(s||0);return `${Math.floor(n/86400)}天 ${Math.floor(n%86400/3600)}小时 ${Math.floor(n%3600/60)}分钟`}
 const operateName=s=>({RECEIVE:'收衣',SEND:'送厂',BACK:'回店',NOTIFY:'通知',PICKUP:'取衣闭单',CANCEL:'取消',RESTORE:'恢复',SUPPLEMENT:'补收附件',RECHARGE:'充值',DEDUCT:'会员卡扣款'})[s]||s
 async function loadStatus(){health.value=await maintenanceApi.status()}
 async function loadEvents(filter={}){lastEventFilter.value=filter;const categories=tab.value==='system'?['SYSTEM_ERROR']:['BUSINESS_EXCEPTION','CLIENT_ERROR'];const all=await Promise.all(categories.map(category=>maintenanceApi.events({...filter,category})));events.value=all.flat().sort((a,b)=>String(b.lastTime).localeCompare(String(a.lastTime)))}
 async function loadAudit(){const [from,to]=auditFilter.range||[];audits.value=await maintenanceApi.audit({keyword:auditFilter.keyword||undefined,from,to})}
 async function loadMessages(){messages.value=await maintenanceApi.messages(messageStatus.value)}
-async function refresh(){loading.value=true;try{if(tab.value==='status')await loadStatus();else if(tab.value==='audit')await loadAudit();else if(tab.value==='messages')await loadMessages();else await loadEvents(lastEventFilter.value)}finally{loading.value=false}}
+async function loadDeletionRequests(){deletionRequests.value=await maintenanceApi.deletionRequests()}
+async function refresh(){loading.value=true;try{if(tab.value==='status')await loadStatus();else if(tab.value==='audit')await loadAudit();else if(tab.value==='messages')await loadMessages();else if(tab.value==='deletion')await loadDeletionRequests();else await loadEvents(lastEventFilter.value)}finally{loading.value=false}}
 async function retryMessage(row){await maintenanceApi.retryMessage(row.id);ElMessage.success('消息已进入重试队列');await loadMessages()}
 async function updateEvent(id,status,note){await maintenanceApi.updateEvent(id,status,note);ElMessage.success('处理状态已更新');await loadEvents(lastEventFilter.value)}
 async function exportEvents(filter){const category=tab.value==='system'?'SYSTEM_ERROR':undefined;const response=await maintenanceApi.exportEvents({...filter,category});const url=URL.createObjectURL(response.data);const link=document.createElement('a');link.href=url;link.download=`维护日志-${new Date().toISOString().slice(0,10)}.csv`;link.click();URL.revokeObjectURL(url)}
+function openDeletionReview(row){selectedDeletion.value=row;identityVerified.value=false;deletionNote.value='';deletionDialog.value=true}
+async function submitDeletionReview(){if(!selectedDeletion.value||!identityVerified.value||!deletionNote.value)return;deletionSaving.value=true;try{const result=await maintenanceApi.closeMiniappAccount(selectedDeletion.value.id,{identityVerified:true,note:deletionNote.value});if(result.status==='PENDING_SERVICE')ElMessage.warning(result.message);else ElMessage.success('账户已注销，交易资料仍需到期复核');deletionDialog.value=false;await loadDeletionRequests()}finally{deletionSaving.value=false}}
+async function clearDue(row){try{await ElMessageBox.confirm(`将清理 ${row.phone||'该申请'} 已满半年的订单联系方式和上门地址，操作不可撤销；收款和会计资料继续保留。确认继续？`,'确认清理到期资料',{type:'warning',confirmButtonText:'确认清理',cancelButtonText:'取消'})}catch{return}cleanupSavingId.value=row.id;try{const result=await maintenanceApi.clearDuePersonalData(row.id);if(result.status==='ON_HOLD')ElMessage.warning(result.message);else ElMessage.success(`${result.message}（正式订单 ${result.formalOrders} 笔，上门预约 ${result.pickupOrders} 笔）`);await loadDeletionRequests()}finally{cleanupSavingId.value=null}}
 
 const EventTable=defineComponent({props:{category:String,rows:Array,loading:Boolean},emits:['filter','update','export'],setup(props,{emit}){
  const status=ref(''),range=ref([]),dialog=ref(false),selected=ref(null),nextStatus=ref('PROCESSING'),note=ref('')
@@ -57,4 +80,4 @@ const EventTable=defineComponent({props:{category:String,rows:Array,loading:Bool
 }})
 onMounted(refresh)
 </script>
-<style scoped>.maintenance-page{background:#fff;padding:24px;border-radius:12px;color:#263445}.page-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}.page-head h2{margin:0 0 7px}.page-head p{margin:0;color:#667588}.tabs :deep(.el-tabs__header){margin-bottom:22px}.health-list{border-top:1px solid #e2e8f0}.health-row{display:grid;grid-template-columns:18px 1fr auto;gap:14px;align-items:center;padding:17px 6px;border-bottom:1px solid #e2e8f0}.health-row div{display:grid;gap:4px}.health-row small{color:#6b798b}.health-row b{font-size:14px}.signal{width:10px;height:10px;border-radius:50%;background:#94a3b8}.signal.ok{background:#22a05a}.signal.error{background:#d64545}.signal.unconfigured{background:#94a3b8}.runtime{display:flex;flex-wrap:wrap;gap:24px;margin-top:18px;color:#65758a;font-size:13px}.filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}.filters>.el-input{width:220px}.footnote{color:#728196}.dialog-message{padding:12px;background:#f5f7fa;border-radius:8px;color:#465568}.dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}@media(max-width:760px){.page-head{display:grid;gap:14px}.runtime{display:grid;gap:7px}}</style>
+<style scoped>.maintenance-page{background:#fff;padding:24px;border-radius:12px;color:#263445}.page-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}.page-head h2{margin:0 0 7px}.page-head p{margin:0;color:#667588}.tabs :deep(.el-tabs__header){margin-bottom:22px}.health-list{border-top:1px solid #e2e8f0}.health-row{display:grid;grid-template-columns:18px 1fr auto;gap:14px;align-items:center;padding:17px 6px;border-bottom:1px solid #e2e8f0}.health-row div{display:grid;gap:4px}.health-row small{color:#6b798b}.health-row b{font-size:14px}.signal{width:10px;height:10px;border-radius:50%;background:#94a3b8}.signal.ok{background:#22a05a}.signal.error{background:#d64545}.signal.unconfigured{background:#94a3b8}.runtime{display:flex;flex-wrap:wrap;gap:24px;margin-top:18px;color:#65758a;font-size:13px}.filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}.filters>.el-input{width:220px}.footnote{color:#728196}.dialog-message{padding:12px;background:#f5f7fa;border-radius:8px;color:#465568}.dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}.deletion-help{max-width:900px;margin:0 0 18px;color:#52657b;line-height:1.6}@media(max-width:760px){.page-head{display:grid;gap:14px}.runtime{display:grid;gap:7px}}</style>

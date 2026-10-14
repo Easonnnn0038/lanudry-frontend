@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
   getVersion: () => ipcRenderer.invoke('app:get-version'),
   openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
+  printShelfLabel: (label) => ipcRenderer.invoke('app:print-shelf-label', label),
   versions: {
     electron: process.versions.electron,
     chrome: process.versions.chrome,

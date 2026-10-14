@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const { shelfLabelHtml } = require('./shelf-label')
 
 const isDev = !app.isPackaged
 
@@ -13,11 +14,32 @@ if (process.getuid && process.getuid() === 0) {
 let mainWindow = null
 
 function productionUrl() {
-  const configPath = path.join(__dirname, 'app-config.json')
-  const configured = process.env.LAUNDRY_APP_URL || JSON.parse(fs.readFileSync(configPath, 'utf8')).productionUrl
+  const configured = process.env.LAUNDRY_APP_URL || appConfig().productionUrl
   const url = new URL(configured)
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('productionUrl 仅支持 http/https')
   return url.toString()
+}
+
+function appConfig() {
+  return JSON.parse(fs.readFileSync(path.join(__dirname, 'app-config.json'), 'utf8'))
+}
+
+async function printShelfLabel(label) {
+  const printerName = (process.env.LAUNDRY_SHELF_PRINTER || appConfig().shelfLabelPrinter || '').trim()
+  if (!printerName) return { ok: false, reason: 'NOT_CONFIGURED' }
+  const printers = await mainWindow.webContents.getPrintersAsync()
+  if (!printers.some(printer => printer.name === printerName)) return { ok: false, reason: 'NOT_FOUND' }
+  const html = shelfLabelHtml(label)
+  const printWindow = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true } })
+  try {
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+    return await new Promise(resolve => printWindow.webContents.print({
+      silent: true, deviceName: printerName, printBackground: true,
+      pageSize: { width: 30000, height: 110000 }, margins: { marginType: 'none' }
+    }, (success, failureReason) => resolve({ ok: success, reason: success ? 'QUEUED' : failureReason || 'FAILED' })))
+  } finally {
+    if (!printWindow.isDestroyed()) printWindow.close()
+  }
 }
 
 function createWindow() {
@@ -59,6 +81,10 @@ app.whenReady().then(() => {
     const url = new URL(target)
     if (!['http:', 'https:'].includes(url.protocol)) throw new Error('仅允许打开网页链接')
     return shell.openExternal(url.toString())
+  })
+  ipcMain.handle('app:print-shelf-label', (event, label) => {
+    if (event.sender !== mainWindow?.webContents) throw new Error('只允许门店主窗口打印衣架号标签')
+    return printShelfLabel(label)
   })
   createWindow()
 

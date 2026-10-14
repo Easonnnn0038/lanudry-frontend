@@ -82,6 +82,7 @@ export const pickupOrderApi = {
   list: (status) => request.get('/pickup-orders', { params: { status: status || undefined } }),
   detail: (id) => request.get(`/pickup-orders/${id}`),
   confirm: (id) => request.post(`/pickup-orders/${id}/confirm`),
+  confirmEligible: () => request.post('/pickup-orders/confirm-eligible'),
   pickedUp: (id) => request.post(`/pickup-orders/${id}/picked-up`)
 }
 
@@ -120,7 +121,10 @@ export const maintenanceApi = {
   audit: (params) => request.get('/maintenance/audit', { params }),
   exportEvents: (params) => request.get('/maintenance/events/export', { params, responseType: 'blob' }),
   messages: (status) => request.get('/maintenance/mq/outbox', { params: { status: status || undefined } }),
-  retryMessage: (id) => request.post(`/maintenance/mq/outbox/${id}/retry`)
+  retryMessage: (id) => request.post(`/maintenance/mq/outbox/${id}/retry`),
+  deletionRequests: () => request.get('/maintenance/miniapp/deletion-requests'),
+  closeMiniappAccount: (id, data) => request.post(`/maintenance/miniapp/deletion-requests/${id}/account-closure`, data),
+  clearDuePersonalData: (id) => request.post(`/maintenance/miniapp/deletion-requests/${id}/clear-due`)
 }
 
 export const shelfApi = {
