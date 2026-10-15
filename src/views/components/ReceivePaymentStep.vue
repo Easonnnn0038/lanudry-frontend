@@ -1,6 +1,7 @@
 <template>
   <div class="step-panel"><div class="card-box">
     <div class="card-title"><el-icon :size="18"><Money /></el-icon><span>收款汇总</span></div>
+    <el-alert v-if="pickupSource" title="此单统一寄回家。这里确认洗护金额，不在门店收款；运费配置后生成最终账单，顾客在小程序付款。" type="info" :closable="false" show-icon />
     <el-alert v-if="rewashSource" title="返洗订单默认免费，不扣会员余额、不重复计入营业额。" type="success" :closable="false" show-icon />
     <div v-else class="urgent-toggle"><el-checkbox v-model="form.urgentFlag" :true-value="1" :false-value="0" @change="$emit('recalculate')"><el-icon><AlarmClock /></el-icon> 加急订单（整体加价 20%）</el-checkbox></div>
     <div class="summary-block">
@@ -12,10 +13,10 @@
       <div class="line highlight"><span>洗衣应付</span><b class="big">¥{{ format(totals.payableAmount) }}</b></div>
       <div v-if="form.newCardFlag === 1" class="line"><span>办卡金额</span><b class="new-card">¥{{ format(totals.newCardAmount) }}</b></div>
       <div v-if="form.rechargeFlag === 1" class="line"><span>充值金额</span><b class="new-card">¥{{ format(totals.rechargeAmount) }}</b></div>
-      <div class="line total-line"><span>本次应收</span><b class="huge">¥{{ format(totals.totalReceivable) }}</b></div>
+      <div class="line total-line"><span>{{ pickupSource ? '洗护待付（运费另计）' : '本次应收' }}</span><b class="huge">¥{{ format(totals.totalReceivable) }}</b></div>
     </div>
     <el-divider />
-    <div v-if="!rewashSource" class="payment-block">
+    <div v-if="!rewashSource && !pickupSource" class="payment-block">
       <div class="block-title">支付方式</div>
       <div v-if="canUseCard" class="card-pay-toggle"><el-checkbox v-model="form.useCardPay" size="large" @change="$emit('recalculate')">使用会员卡余额支付（余额：¥{{ format(cardBalance) }}）</el-checkbox></div>
       <div v-if="canUseCard && form.useCardPay" class="pay-options">
@@ -35,7 +36,7 @@
     </div>
     <el-divider />
     <div class="paid-block"><el-form label-width="80px">
-      <el-form-item v-if="!rewashSource" label="实收金额"><el-input-number v-model="form.totalPaid" :min="0" :precision="2" :step="10" size="large" controls-position="right" style="width:100%" @change="$emit('paid-manually')" /></el-form-item>
+      <el-form-item v-if="!rewashSource && !pickupSource" label="实收金额"><el-input-number v-model="form.totalPaid" :min="0" :precision="2" :step="10" size="large" controls-position="right" style="width:100%" @change="$emit('paid-manually')" /></el-form-item>
       <el-form-item v-if="totals.debtAmount > 0" label="欠款"><el-alert type="warning" show-icon :closable="false" :title="`本次实收少于应收，将记录欠款 ¥${format(totals.debtAmount)}`" /></el-form-item>
       <el-form-item label="整单备注"><el-input v-model="form.remark" type="textarea" :rows="2" maxlength="200" placeholder="整单备注/客户留言（可选）" /></el-form-item>
     </el-form></div>
@@ -44,7 +45,7 @@
 
 <script setup>
 import { Money, AlarmClock } from '@element-plus/icons-vue'
-defineProps({ form:{type:Object,required:true}, rewashSource:Object, totals:{type:Object,required:true}, canUseCard:Boolean, cardBalance:Number, cardBalanceAfter:Number, format:{type:Function,required:true} })
+defineProps({ form:{type:Object,required:true}, pickupSource:Object, rewashSource:Object, totals:{type:Object,required:true}, canUseCard:Boolean, cardBalance:Number, cardBalanceAfter:Number, format:{type:Function,required:true} })
 defineEmits(['recalculate','paid-manually'])
 </script>
 

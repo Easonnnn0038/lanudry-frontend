@@ -49,7 +49,7 @@ async function load(){loading.value=true;try{rows.value=await pickupOrderApi.lis
 async function open(row){detail.value=await pickupOrderApi.detail(row.id);visible.value=true}
 async function advance(row,action){if(action==='confirm')await pickupOrderApi.confirm(row.id);else await pickupOrderApi.pickedUp(row.id);ElMessage.success(action==='confirm'?'已接单':'已取回门店');await load()}
 async function confirmAll(){confirming.value=true;try{const result=await pickupOrderApi.confirmEligible();const count=result.confirmed||0;ElMessage[count?'success':'info'](count?`已接收 ${count} 单；过期、待付款和已取消的预约未处理`:'没有符合条件的待接预约');await load()}finally{confirming.value=false}}
-async function importToReceive(row){busyId.value=row.id;try{const source=await pickupOrderApi.detail(row.id);localStorage.setItem('laundry_pickup_pending_v1',JSON.stringify({id:source.id,pickupNo:source.pickup_no,customer:{name:source.contact_name,phone:source.customer_phone,address:source.pickup_address||''},remark:source.remark||'',items:source.items}));window.dispatchEvent(new CustomEvent('navigate-menu',{detail:'store-receive'}))}finally{busyId.value=null}}
+async function importToReceive(row){busyId.value=row.id;try{const source=await pickupOrderApi.detail(row.id);localStorage.setItem('laundry_pickup_pending_v1',JSON.stringify({id:source.id,pickupNo:source.pickup_no,homeDelivery:!!source.delivery_address,customer:{name:source.contact_name,phone:source.customer_phone,address:source.pickup_address||''},remark:source.remark||'',items:source.items}));window.dispatchEvent(new CustomEvent('navigate-menu',{detail:'store-receive'}))}finally{busyId.value=null}}
 onMounted(load)
 </script>
 

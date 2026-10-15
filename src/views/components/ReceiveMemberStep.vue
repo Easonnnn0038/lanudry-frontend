@@ -3,10 +3,10 @@
     <div class="card-box">
       <div class="card-title">
         <el-icon :size="18"><CreditCard /></el-icon><span>会员卡</span>
-        <el-tooltip v-if="!currentCard && form.newCardFlag !== 1" content="请先勾选下方「收衣同时办卡」" placement="top">
+        <el-tooltip v-if="!pickupSource && !currentCard && form.newCardFlag !== 1" content="请先勾选下方「收衣同时办卡」" placement="top">
           <el-button type="primary" link class="ml-auto" disabled><el-icon><Plus /></el-icon>办卡</el-button>
         </el-tooltip>
-        <el-button v-else-if="!currentCard" type="primary" link class="ml-auto" @click="$emit('open-card')"><el-icon><Plus /></el-icon>办卡</el-button>
+        <el-button v-else-if="!pickupSource && !currentCard" type="primary" link class="ml-auto" @click="$emit('open-card')"><el-icon><Plus /></el-icon>办卡</el-button>
       </div>
 
       <div v-if="currentCard" class="mc-box">
@@ -17,11 +17,11 @@
         <div class="mc-stats"><span>累计充值 ¥{{ format(currentCard.totalRecharge) }}</span><span>累计消费 ¥{{ format(currentCard.totalConsume) }}</span></div>
         <div class="mc-actions"><el-button size="small" type="danger" link @click="$emit('detach-card')">不使用此卡</el-button></div>
       </div>
-      <el-empty v-else description="暂无会员卡，可勾选「收衣同时办卡」" :image-size="70">
-        <template #footer><el-button type="primary" link @click="$emit('open-card')">新办一张会员卡</el-button></template>
+      <el-empty v-else :description="pickupSource ? '暂无会员卡，按普通洗护价格结算' : '暂无会员卡，可勾选「收衣同时办卡」'" :image-size="70">
+        <template v-if="!pickupSource" #footer><el-button type="primary" link @click="$emit('open-card')">新办一张会员卡</el-button></template>
       </el-empty>
 
-      <div v-if="currentCard" class="new-card-toggle">
+      <div v-if="currentCard && !pickupSource" class="new-card-toggle">
         <el-checkbox v-model="form.rechargeFlag" :true-value="1" :false-value="0" @change="$emit('recharge-change', $event)">收衣同时充值</el-checkbox>
         <div v-if="form.rechargeFlag === 1" class="new-card-options">
           <el-form label-width="80px">
@@ -32,7 +32,7 @@
         </div>
       </div>
 
-      <div v-else class="new-card-toggle">
+      <div v-else-if="!pickupSource" class="new-card-toggle">
         <el-checkbox v-model="form.newCardFlag" :true-value="1" :false-value="0" @change="$emit('new-card-change', $event)">收衣同时办卡</el-checkbox>
         <div v-if="form.newCardFlag === 1" class="new-card-options">
           <el-form label-width="80px">
@@ -48,7 +48,7 @@
 
 <script setup>
 import { CreditCard, Plus } from '@element-plus/icons-vue'
-defineProps({ form:{type:Object,required:true}, currentCard:Object, cardTypes:{type:Array,required:true}, newCardType:Object, rechargeType:Object, rechargeBalanceAfter:Number, format:{type:Function,required:true} })
+defineProps({ form:{type:Object,required:true}, pickupSource:Object, currentCard:Object, cardTypes:{type:Array,required:true}, newCardType:Object, rechargeType:Object, rechargeBalanceAfter:Number, format:{type:Function,required:true} })
 defineEmits(['open-card','detach-card','new-card-change','recharge-change','recalculate'])
 </script>
 

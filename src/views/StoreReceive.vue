@@ -7,7 +7,7 @@
         <el-step
           v-for="(s, i) in stepList"
           :key="i"
-          :title="s.title"
+          :title="homeDeliveryPickup && i === 4 ? '验衣结算' : s.title"
           :icon="s.icon"
           :status="i < currentStep ? 'success' : (i === currentStep ? 'process' : 'wait')"
           :class="{ clickable: i <= maxReachedStep }"
@@ -23,7 +23,7 @@
       <ReceiveCustomerStep v-show="currentStep === 0" :customer="custForm" :customer-detail="customerDetail" :is-new-customer="isNewCustomer" :format="fmt" @search="onSearchCustomer" @phone-blur="onPhoneBlur" />
 
       <!-- ===== Step 1: 会员卡 ===== -->
-      <ReceiveMemberStep v-show="currentStep === 1" :form="form" :current-card="currentCard" :card-types="cardTypeList" :new-card-type="newCardType" :recharge-type="rechargeType" :recharge-balance-after="rechargeBalanceAfter" :format="fmt" @open-card="openCreateCard" @detach-card="detachCard" @new-card-change="onNewCardChange" @recharge-change="onRechargeChange" @recalculate="recalc" />
+      <ReceiveMemberStep v-show="currentStep === 1" :form="form" :pickup-source="homeDeliveryPickup ? pickupSource : null" :current-card="currentCard" :card-types="cardTypeList" :new-card-type="newCardType" :recharge-type="rechargeType" :recharge-balance-after="rechargeBalanceAfter" :format="fmt" @open-card="openCreateCard" @detach-card="detachCard" @new-card-change="onNewCardChange" @recharge-change="onRechargeChange" @recalculate="recalc" />
       <!-- ===== Step 2: 衣物明细 ===== -->
       <ReceiveItemsStep v-show="currentStep === 2" v-model:keyword="kw" v-model:active-group="activeGroup" :rewash-source="rewashSource" :groups="groups" :categories-by-group="categoriesByGroup" :is-selected="isCatSelected" :items="form.items" :is-admin="authStore.isAdmin" :custom-category="customCategory" :format="fmt" :group-label="groupLabel" :color-hex="colorHex" @search="onSearchCategory" @add="onAddCategory" @recalculate="recalc" @edit="editItem" @remove="removeItem" />
 
@@ -31,7 +31,7 @@
       <ReceivePhotoStep ref="photoStepRef" v-show="currentStep === 3" :photos="form.defectPhotos" :pedal-enabled="pedalEnabled" :pedal-key-name="pedalKeyName" :uploading="photoUploading" :photo-url="photoUrl" :preview-visible="previewVisibleFlag" :preview-urls="previewUrls" :preview-index="previewIndex" @toggle-pedal="togglePedal" @capture="onPhotoCapture" @clear="clearPhotos" @preview="previewPhoto" @edit="editDefectType" @remove="removePhoto" @close-preview="previewVisibleFlag=false" />
 
       <!-- ===== Step 4: 收款 ===== -->
-      <ReceivePaymentStep v-show="currentStep === 4" :form="form" :rewash-source="rewashSource" :totals="totals" :can-use-card="canUseCard" :card-balance="cardBalance" :card-balance-after="cardBalanceAfter" :format="fmt" @recalculate="recalc" @paid-manually="totalPaidManually = true" />
+      <ReceivePaymentStep v-show="currentStep === 4" :form="form" :pickup-source="homeDeliveryPickup ? pickupSource : null" :rewash-source="rewashSource" :totals="totals" :can-use-card="canUseCard" :card-balance="cardBalance" :card-balance-after="cardBalanceAfter" :format="fmt" @recalculate="recalc" @paid-manually="totalPaidManually = true" />
     </div>
     <!-- ============= 底部步骤导航 ============= -->
     <div class="step-nav">
@@ -48,7 +48,7 @@
           :loading="submitting"
           @click="submitOrder"
         >
-          {{ rewashSource ? `免费返洗 ${_totals.count} 件` : `收款 ¥${fmt(totals.totalReceivable)} 并完成收衣` }}
+          {{ rewashSource ? `免费返洗 ${_totals.count} 件` : homeDeliveryPickup ? '确认验衣并生成待付款订单' : `收款 ¥${fmt(totals.totalReceivable)} 并完成收衣` }}
         </el-button>
       </div>
     </div>
@@ -199,6 +199,7 @@ const draftDialogVisible = ref(false)
 const activeDraftId = ref(localId())
 const rewashSource = ref(null)
 const pickupSource = ref(null)
+const homeDeliveryPickup = computed(() => pickupSource.value?.homeDelivery === true)
 let draftTimer = null
 let restoringDraft = false
 
@@ -923,15 +924,15 @@ async function submitOrder() {
       rechargeCardTypeId: form.rechargeFlag === 1 ? form.rechargeCardTypeId : null,
       rechargePayMethod: form.rechargeFlag === 1 ? form.rechargePayMethod : null,
       // 只有使用卡扣款时才传卡ID；充值时也需要传（后端需要更新卡余额）
-      memberCardId: (useCardForPay || form.rechargeFlag === 1) ? form.memberCardId : null,
+      memberCardId: (pickupSource.value || useCardForPay || form.rechargeFlag === 1) ? form.memberCardId : null,
       urgentFlag: form.urgentFlag,
-      paymentMethod: _totals.cardDeduct > 0
+      paymentMethod: homeDeliveryPickup.value ? 'WECHAT' : _totals.cardDeduct > 0
         ? (_totals.extraPayment > 0 ? 'MIXED' : 'MEMBER_CARD')
         : (form.extraMethod || 'CASH'),
       extraMethod: _totals.extraPayment > 0
         ? (form.extraMethod || 'CASH')
         : null,
-      totalPaid: round2(form.totalPaid || 0),
+      totalPaid: homeDeliveryPickup.value ? 0 : round2(form.totalPaid || 0),
       priceOverrideReason: null,
       remark: form.remark || '',
       defectPhotos: form.defectPhotos.map(p => ({
@@ -1134,13 +1135,18 @@ async function applyPendingPickup() {
       remark: ''
     })
     await onSearchCustomer()
+    if (homeDeliveryPickup.value) {
+      form.useCardPay = false
+      form.newCardFlag = 0
+      form.rechargeFlag = 0
+    }
     form.items = pickupItems(pending.items, allCategories.value, computeMemberPrice, localId)
     form.remark = pending.remark ? `上门取衣：${pending.remark}` : `上门取衣预约 ${pending.pickupNo}`
     currentStep.value = 2
     maxReachedStep.value = 4
     recalc()
     restoringDraft = false
-    ElMessage.success('预约顾客和衣物已带入，请核对后正常收衣')
+    ElMessage.success(homeDeliveryPickup.value ? '预约顾客和衣物已带入；验衣后生成小程序待付款订单' : '旧预约已带入；按原门店取衣流程收衣')
     return true
   } catch (e) {
     restoringDraft = false
