@@ -30,7 +30,9 @@
 
         <StoreNotify v-else-if="activeMenu === 'store-notify'" />
 
-        <StoreQuery v-else-if="activeMenu === 'store-query'" :key="queryTab" :initial-tab="queryTab" />
+        <StoreQuery v-else-if="activeMenu === 'store-query'" :key="queryTab + queryKeyword" :initial-tab="queryTab" :initial-keyword="queryKeyword" />
+
+        <StoreCustomers v-else-if="activeMenu === 'store-customers'" />
 
         <StoreError v-else-if="activeMenu === 'store-error'" />
 
@@ -100,6 +102,7 @@ import StoreLoad from '@/views/StoreLoad.vue'
 import StoreBack from '@/views/StoreBack.vue'
 import StoreNotify from '@/views/StoreNotify.vue'
 import StoreQuery from '@/views/StoreQuery.vue'
+import StoreCustomers from '@/views/StoreCustomers.vue'
 import StoreError from '@/views/StoreError.vue'
 import StoreSupplement from '@/views/StoreSupplement.vue'
 import CategoryManage from '@/views/CategoryManage.vue'
@@ -115,6 +118,7 @@ const permissionStore = usePermissionStore()
 
 const activeMenu = ref('dashboard')
 const queryTab = ref('orders')
+const queryKeyword = ref('')
 
 // 图标映射表
 const iconMap = {
@@ -166,7 +170,7 @@ const currentIcon = computed(() => {
 
 // 菜单选择
 function handleMenuSelect(index) {
-  if (index === 'store-query') queryTab.value = 'orders'
+  if (index === 'store-query') { queryTab.value = 'orders'; queryKeyword.value = '' }
   activeMenu.value = index
 }
 
@@ -174,6 +178,7 @@ function handleMenuSelect(index) {
 function onNavigateMenu(e) {
   if (typeof e.detail === 'object') {
     queryTab.value = e.detail.tab || 'orders'
+    queryKeyword.value = e.detail.keyword || ''
     activeMenu.value = e.detail.menu
   } else {
     activeMenu.value = e.detail

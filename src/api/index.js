@@ -20,7 +20,10 @@ export const customerApi = {
   /** 按手机号查询客户信息+会员卡 */
   search: (phone) => request.get('/customer/search', { params: { phone } }),
   /** 保存客户（增改） */
-  save: (data) => request.post('/customer/save', data)
+  save: (data) => request.post('/customer/save', data),
+  list: (params) => request.get('/customer/list', { params }),
+  detail: (id) => request.get(`/customer/${id}`),
+  addContact: (id, data) => request.post(`/customer/${id}/contacts`, data)
 }
 
 /** 会员卡相关接口 */

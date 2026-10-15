@@ -18,6 +18,7 @@ const allMenus = [
       { index: 'store-close', title: '快速取衣', icon: 'CircleCheck' },
       { index: 'store-shelf', title: '上架/下架', icon: 'Goods' },
       { index: 'store-query', title: '订单与衣物查询', icon: 'Search' },
+      { index: 'store-customers', title: '客户档案', icon: 'User' },
       { index: 'store-error', title: '错误回店', icon: 'Warning', roles: ['ADMIN'] },
       { index: 'store-extra', title: '补收附件', icon: 'Plus' },
       { index: 'category-manage', title: '衣物定价', icon: 'PriceTag', roles: ['ADMIN'] }

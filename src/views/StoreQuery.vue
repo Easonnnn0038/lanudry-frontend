@@ -78,9 +78,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { orderApi, storeOperationsApi } from '@/api'
 import ReceiptPreview from '@/views/components/ReceiptPreview.vue'
 import OrderSourceTag from '@/components/OrderSourceTag.vue'
-const props = defineProps({ initialTab: { type: String, default: 'orders' } })
+const props = defineProps({ initialTab: { type: String, default: 'orders' }, initialKeyword: { type: String, default: '' } })
 const activeTab = ref(props.initialTab)
-const orderKeyword = ref(''), orderStatus = ref(''), orderSource = ref(''), orderDates = ref([])
+const orderKeyword = ref(props.initialKeyword), orderStatus = ref(''), orderSource = ref(''), orderDates = ref([])
 const orders = ref([]), ordersLoading = ref(false), orderPage = ref(1), orderTotal = ref(0), ordersLoaded = ref(false)
 const statusOptions = [
   { value: 'RECEIVED', label: '待送厂' }, { value: 'SENT_TO_FACTORY', label: '运输中' },
