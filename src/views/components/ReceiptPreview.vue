@@ -34,7 +34,7 @@
       <div v-if="viewMode !== 'tags'" class="thermal-80" :class="dft ? 'dft-font' : ''">
         <!-- 头 -->
         <div class="t-logo">
-          <div class="logo-icon">小木棒</div>
+          <img class="logo-image" :src="brandLogo" alt="小木棒洗衣标志">
           <div class="store">{{ data?.storeName || '小木棒洗衣' }}</div>
         </div>
         <div class="t-title">— 收 衣 凭 证 —</div>
@@ -187,6 +187,7 @@
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Tickets, Collection, Document, Printer } from '@element-plus/icons-vue'
+import brandLogo from '@/assets/brand-logo.png'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -274,7 +275,7 @@ function generatePrintHtml(mode) {
   const receipt = `
   <div class="thermal-80 page-break">
     <div class="t-logo">
-      <div class="logo-icon">小木棒</div>
+      <img class="logo-image" src="${escapeHtml(brandLogo)}" alt="小木棒洗衣标志">
       <div class="store">${d.storeName || '小木棒洗衣'}</div>
     </div>
     <div class="t-title">— 收 衣 凭 证 —</div>
@@ -411,10 +412,7 @@ body {
   }
 }
 .t-logo { text-align: center; margin-bottom: 4px; }
-.t-logo .logo-icon {
-  display: inline-block; padding: 2px 10px; border: 2px solid #000; border-radius: 3px;
-  font-weight: 700; letter-spacing: 2px; margin-bottom: 4px; font-size: 14px;
-}
+.t-logo .logo-image { display: block; width: 18mm; height: 18mm; object-fit: contain; margin: 0 auto 4px; }
 .t-logo .store { font-size: 14px; font-weight: 700; letter-spacing: 2px; }
 .t-title { text-align: center; font-weight: 700; font-size: 16px; letter-spacing: 4px; margin: 6px 0 0; }
 .t-info { margin-top: 6px; }
@@ -534,10 +532,7 @@ body {
 .thermal-80.dft-font { font-family: "FangSong","STFangsong",monospace; }
 
 .t-logo { text-align: center; margin-bottom: 4px; }
-.t-logo .logo-icon {
-  display: inline-block; padding: 2px 10px; border: 2px solid #000; border-radius: 3px;
-  font-weight: 700; letter-spacing: 2px; margin-bottom: 4px; font-size: 14px;
-}
+.t-logo .logo-image { display: block; width: 18mm; height: 18mm; object-fit: contain; margin: 0 auto 4px; }
 .t-logo .store { font-size: 14px; font-weight: 700; letter-spacing: 2px; }
 .t-title { text-align: center; font-weight: 700; font-size: 16px; letter-spacing: 4px; margin: 6px 0 0; }
 .t-center { text-align: center; }
