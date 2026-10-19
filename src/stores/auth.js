@@ -45,6 +45,8 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('role')
     localStorage.removeItem('username')
     localStorage.removeItem('realName')
+    localStorage.removeItem('laundry_rewash_pending_v1')
+    localStorage.removeItem('laundry_pickup_pending_v1')
   }
 
   return {

@@ -1,11 +1,5 @@
 <template>
   <div class="login-container">
-    <div class="login-bg-decoration">
-      <div class="circle circle-1"></div>
-      <div class="circle circle-2"></div>
-      <div class="circle circle-3"></div>
-    </div>
-
     <div class="login-card">
       <!-- Logo 区域 -->
       <div class="login-header">
@@ -25,8 +19,10 @@
         size="large"
         @keyup.enter="handleLogin"
       >
-        <el-form-item prop="username">
+        <el-form-item prop="username" class="login-field">
+          <label class="field-label" for="login-username">用户名</label>
           <el-input
+            id="login-username"
             v-model="loginForm.username"
             placeholder="请输入用户名"
             :prefix-icon="User"
@@ -34,8 +30,10 @@
           />
         </el-form-item>
 
-        <el-form-item prop="password">
+        <el-form-item prop="password" class="login-field">
+          <label class="field-label" for="login-password">密码</label>
           <el-input
+            id="login-password"
             v-model="loginForm.password"
             type="password"
             placeholder="请输入密码"
@@ -140,105 +138,55 @@ async function handleLogin() {
 
 <style scoped>
 .login-container {
-  position: relative;
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-  overflow: hidden;
-}
-
-/* 背景装饰 */
-.login-bg-decoration {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-}
-
-.circle {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-}
-
-.circle-1 {
-  width: 400px;
-  height: 400px;
-  top: -100px;
-  right: -100px;
-  animation: float 8s ease-in-out infinite;
-}
-
-.circle-2 {
-  width: 300px;
-  height: 300px;
-  bottom: -80px;
-  left: -80px;
-  animation: float 10s ease-in-out infinite reverse;
-}
-
-.circle-3 {
-  width: 200px;
-  height: 200px;
-  top: 50%;
-  left: 10%;
-  animation: float 12s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px) translateX(0px);
-  }
-  50% {
-    transform: translateY(-30px) translateX(20px);
-  }
+  box-sizing: border-box;
+  padding: clamp(130px, 20vh, 220px) 24px 40px;
+  background-color: #b6d2d9;
+  background-image: linear-gradient(180deg, rgba(10, 39, 52, 0.02) 0%, rgba(10, 39, 52, 0.1) 35%, rgba(10, 39, 52, 0.42) 100%), url('../assets/login-storefront-wls.png');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
 }
 
 /* 登录卡片 */
 .login-card {
   position: relative;
-  z-index: 10;
-  width: 420px;
-  padding: 40px 40px 24px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(20px);
-  animation: cardAppear 0.6s ease-out;
+  box-sizing: border-box;
+  width: min(100%, 420px);
+  padding: 30px 36px 22px;
+  color: #ffffff;
+  background: rgba(14, 42, 55, 0.67);
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  border-radius: 14px;
+  box-shadow: 0 24px 56px rgba(5, 29, 38, 0.28);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  animation: cardAppear 0.45s ease-out both;
 }
 
 @keyframes cardAppear {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* 头部区域 */
 .login-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .logo-wrapper {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 96px;
-  height: 96px;
-  margin-bottom: 16px;
-  filter: drop-shadow(0 8px 12px rgba(10, 91, 99, 0.2));
+  width: 64px;
+  height: 64px;
+  margin-bottom: 12px;
 }
 
 .logo-wrapper img {
@@ -248,34 +196,46 @@ async function handleLogin() {
 }
 
 .login-title {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
-  color: #303133;
-  margin: 0 0 8px 0;
-  letter-spacing: 2px;
+  color: #ffffff;
+  margin: 0 0 5px;
+  letter-spacing: 0.04em;
 }
 
 .login-subtitle {
-  font-size: 14px;
-  color: #909399;
+  font-size: 12px;
+  color: #d3e3e9;
   margin: 0;
-  letter-spacing: 1px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 /* 表单区域 */
 .login-form {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
+.login-field { margin-bottom: 20px; }
+.field-label { display: block; width: 100%; margin-bottom: 7px; color: #ffffff; font-size: 13px; font-weight: 600; }
+
 .login-form :deep(.el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.57);
   border-radius: 8px;
-  padding: 4px 12px;
+  padding: 2px 12px;
 }
 
 .login-form :deep(.el-input__inner) {
-  height: 44px;
+  height: 42px;
+  color: #ffffff;
 }
+.login-form :deep(.el-input__inner::placeholder) { color: #d5e5ea; }
+.login-form :deep(.el-input__prefix-inner),
+.login-form :deep(.el-input__suffix-inner) { color: #e7f1f4; }
+.login-form :deep(.el-input__wrapper:hover) { box-shadow: inset 0 0 0 1px #ffffff; }
+.login-form :deep(.el-input__wrapper.is-focus) { box-shadow: inset 0 0 0 2px #ffffff; }
+.login-form :deep(.el-form-item__error) { color: #ffe6c9; }
 
 /* 登录按钮 */
 .login-button {
@@ -283,17 +243,17 @@ async function handleLogin() {
   height: 48px;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: 4px;
+  letter-spacing: 0.12em;
   border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  transition: all 0.3s ease;
+  border-radius: 24px;
+  background: #ffffff;
+  color: #123f50;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .login-button:hover {
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a3f92 100%);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+  background: #e8f5f7;
+  color: #123f50;
   transform: translateY(-1px);
 }
 
@@ -305,7 +265,24 @@ async function handleLogin() {
 .login-footer {
   text-align: center;
   font-size: 12px;
-  color: #c0c4cc;
-  margin-top: 16px;
+  color: #d3e3e9;
+  margin-top: 6px;
+}
+
+@media (max-width: 640px) {
+  .login-container {
+    align-items: flex-start;
+    padding: min(37vh, 290px) 18px 28px;
+    background-color: #dce9eb;
+    background-image: url('../assets/login-storefront-wls.png');
+    background-size: auto min(37vh, 290px);
+    background-position: center top;
+  }
+  .login-card { padding: 28px 24px 20px; background: rgba(14, 42, 55, 0.88); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card { animation: none; }
+  .login-button { transition: none; }
 }
 </style>

@@ -12,7 +12,7 @@
     <el-container class="body-container">
       <el-main class="main-content">
         <!-- 首页 Dashboard -->
-        <Dashboard v-if="!activeMenu || activeMenu === 'dashboard'" />
+        <Dashboard v-if="!activeMenu || activeMenu === 'dashboard'" @account-action="handleSignOut" />
 
         <!-- 收衣页面 -->
         <StoreReceive v-else-if="activeMenu === 'store-receive'" />
@@ -186,19 +186,23 @@ function onNavigateMenu(e) {
 }
 
 // 退出登录
-async function handleLogout() {
+async function handleSignOut(mode) {
+  const switching = mode === 'switch'
   try {
-    await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-    authStore.clearAuth()
-    ElMessage.success('已退出登录')
-    router.push('/login')
+    await ElMessageBox.confirm(
+      switching ? '切换账号后，请使用其他账号重新登录。当前页面未保存的内容将丢失。' : '确定要退出登录吗？当前页面未保存的内容将丢失。',
+      switching ? '切换账号' : '退出登录', {
+        confirmButtonText: switching ? '切换账号' : '退出登录',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
   } catch (e) {
-    // 用户取消
+    if (e !== 'cancel' && e !== 'close') ElMessage.error('操作失败，请重试')
+    return
   }
+  authStore.clearAuth()
+  await router.replace('/login')
+  ElMessage.success(switching ? '请登录其他账号' : '已退出登录')
 }
 
 onMounted(() => {

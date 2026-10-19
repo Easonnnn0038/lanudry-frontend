@@ -6,12 +6,20 @@
         <h1>首页</h1>
         <p>{{ currentDate }}</p>
       </div>
-      <div class="user-chip" @click="handleProfileClick">
-        <div class="avatar">
-          <el-icon :size="18" color="#fff"><UserFilled /></el-icon>
-        </div>
-        <span>{{ authStore.realName || authStore.username }}</span>
-      </div>
+      <el-dropdown trigger="click" placement="bottom-end" @command="emit('account-action', $event)">
+        <button type="button" class="user-chip" aria-label="账号菜单">
+          <span class="avatar">
+            <el-icon :size="18" color="#fff"><UserFilled /></el-icon>
+          </span>
+          <span>{{ authStore.realName || authStore.username }}</span>
+        </button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="switch">切换账号</el-dropdown-item>
+            <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
     </div>
 
     <!-- 统计卡片 -->
@@ -142,7 +150,6 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -157,8 +164,8 @@ import { orderApi } from '@/api'
 import ReceiptPreview from '@/views/components/ReceiptPreview.vue'
 import OrderSourceTag from '@/components/OrderSourceTag.vue'
 
-const router = useRouter()
 const authStore = useAuthStore()
+const emit = defineEmits(['account-action'])
 
 // 当前日期
 const currentDate = computed(() => {
@@ -335,10 +342,6 @@ function formatTime(value) {
   return value ? String(value).replace('T', ' ').slice(0, 16) : '-'
 }
 
-function handleProfileClick() {
-  // 预留个人中心入口
-}
-
 onMounted(async () => {
   // 并行加载首页统计和最近订单
   await Promise.all([loadStats(), loadRecent()])
@@ -397,11 +400,15 @@ export default {
   font-size: 14px;
   font-weight: 500;
   color: #334155;
+  border: 0;
+  font-family: inherit;
 }
 
 .user-chip:hover {
   background: #f1f5f9;
 }
+
+.user-chip:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
 
 .user-chip .avatar {
   width: 32px;
